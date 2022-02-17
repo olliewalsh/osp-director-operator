@@ -21,7 +21,7 @@ on:
 
 env:
   imageregistry: 'quay.io'
-  imagenamespace: 'olliewalsh'
+  imagenamespace: 'foobar'
   latesttag: latest
 
 jobs:
@@ -35,6 +35,11 @@ jobs:
     - name: Get branch name
       id: branch-name
       uses: tj-actions/branch-names@v5
+
+    - name: Set custom image namespace
+      if: "${{ secrets.IMAGENAMESPACE != '' }}"
+      run: |
+        echo "imagenamespace=${{ secrets.IMAGENAMESPACE }}" >> $GITHUB_ENV
 
     - name: Set latest tag for non master branch
       if: "${{ steps.branch-name.outputs.current_branch != 'master' }}"

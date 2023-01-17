@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
@@ -265,9 +266,7 @@ func (r *OpenStackNetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-//
 // createOrUpdateNetworkAttachmentDefinition - create or update NetworkAttachmentDefinition
-//
 func (r *OpenStackNetReconciler) createOrUpdateNetworkAttachmentDefinition(
 	ctx context.Context,
 	instance *ospdirectorv1beta1.OpenStackNet,
@@ -293,11 +292,25 @@ func (r *OpenStackNetReconciler) createOrUpdateNetworkAttachmentDefinition(
 		return common.WrapErrorForObject(fmt.Sprintf("failure get bridge name for OpenStackNetAttachment referenc: %s", instance.Spec.AttachConfiguration), instance, err)
 	}
 
+	routes := []map[string]string{}
+	for _, route := range instance.Spec.Routes {
+		routes = append(routes, map[string]string{"dst": route.Destination, "gw": route.Nexthop})
+	}
+
+	routesJSON, err := json.Marshal(routes)
+	if err != nil {
+		cond.Message = fmt.Sprintf("OpenStackNet %s routes json encoding failed", instance.Name)
+		cond.Type = shared.NetError
+
+		return common.WrapErrorForObject("routes json encoding failed", instance, err)
+	}
+
 	templateData := map[string]string{
 		"Name":       instance.Name,
 		"BridgeName": bridgeName,
 		"Vlan":       strconv.Itoa(instance.Spec.Vlan),
 		"MTU":        strconv.Itoa(instance.Spec.MTU),
+		"Routes":     string(routesJSON),
 	}
 
 	//

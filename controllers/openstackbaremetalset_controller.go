@@ -22,6 +22,7 @@ import (
 	"net"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -153,6 +154,7 @@ func (r *OpenStackBaremetalSetReconciler) Reconcile(ctx context.Context, req ctr
 	}(cond)
 
 	// examine DeletionTimestamp to determine if object is under deletion
+	// FIXME: https://issues.redhat.com/browse/OSPK8-666
 	finalizerName := "baremetalset.osp-director.openstack.org-" + instance.Name
 	if instance.ObjectMeta.DeletionTimestamp.IsZero() {
 		// The object is not being deleted, so if it does not have our finalizer,
@@ -911,45 +913,75 @@ func (r *OpenStackBaremetalSetReconciler) baremetalHostProvision(
 	}
 
 	sts = append(sts, userDataSt)
-	// TODO mschuppert: get ctlplane network name using ooo-ctlplane-network label
-	ipCidr := instance.Status.BaremetalHosts[bmhStatus.Hostname].IPAddresses["ctlplane"]
 
-	ip, network, _ := net.ParseCIDR(ipCidr)
-	netMask := network.Mask
-
-	netNameLower := "ctlplane"
-	// get network with name_lower label
 	labelSelector := map[string]string{
-		shared.SubNetNameLabelSelector: netNameLower,
+		shared.ControlPlaneNetworkLabelSelector: strconv.FormatBool(true),
 	}
 
-	// get ctlplane network
-	ctlPlaneNetwork, err := ospdirectorv1beta1.GetOpenStackNetWithLabel(
+	ctlplaneNets, err := ospdirectorv1beta1.GetOpenStackNetsMapWithLabel(
 		r.Client,
 		instance.Namespace,
 		labelSelector,
 	)
 	if err != nil {
-		if k8s_errors.IsNotFound(err) {
-			cond.Message = fmt.Sprintf("OpenStackNet with NameLower %s not found!", netNameLower)
-			cond.Reason = shared.CommonCondReasonOSNetNotFound
-		} else {
-			// Error reading the object - requeue the request.
-			cond.Message = fmt.Sprintf("Error getting OSNet with labelSelector %v", labelSelector)
-			cond.Reason = shared.CommonCondReasonOSNetError
-		}
+		cond.Message = fmt.Sprintf("Error getting ctlplane OSNets with labelSelector %v", labelSelector)
+		cond.Reason = shared.CommonCondReasonOSNetError
 		cond.Type = shared.CommonCondTypeError
 		err = common.WrapErrorForObject(cond.Message, instance, err)
+		return err
+	}
+
+	var netNameLower string
+	var ctlPlaneNetwork ospdirectorv1beta1.OpenStackNet
+
+outer:
+	for netName, osNet := range ctlplaneNets {
+		for _, myNet := range instance.Spec.Networks {
+			if myNet == netName {
+				netNameLower = netName
+				ctlPlaneNetwork = osNet
+				break outer
+			}
+		}
+	}
+
+	if netNameLower == "" {
+		cond.Message = "Ctlplane network not found"
+		cond.Reason = shared.CommonCondReasonOSNetError
+		cond.Type = shared.CommonCondTypeError
+		err = common.WrapErrorForObject(cond.Message, instance, err)
+		return err
+	}
+
+	ipCidr := instance.Status.BaremetalHosts[bmhStatus.Hostname].IPAddresses[netNameLower]
+	ip, network, err := net.ParseCIDR(ipCidr)
+	if err != nil {
+		cond.Message = fmt.Sprintf("Error parsing IP CIDR %v for network %v", ipCidr, netNameLower)
+		cond.Reason = shared.CommonCondReasonOSNetError
+		cond.Type = shared.CommonCondTypeError
+		err = common.WrapErrorForObject(cond.Message, instance, err)
+		return err
+	}
+
+	netMask := network.Mask
+
+	// Get baremetal host now to query mac addess
+	foundBaremetalHost := &metal3v1alpha1.BareMetalHost{}
+	err = r.Get(ctx, types.NamespacedName{Name: bmh, Namespace: "openshift-machine-api"}, foundBaremetalHost)
+	if err != nil {
+		cond.Message = fmt.Sprintf("Failed to get %s %s", foundBaremetalHost.Kind, foundBaremetalHost.Name)
+		cond.Reason = shared.BaremetalHostCondReasonGetError
+		cond.Type = shared.CommonCondTypeError
 
 		return err
 	}
 
 	// Network data cloud-init secret
 	templateParameters = make(map[string]interface{})
-	templateParameters["CtlplaneIp"] = ip.String()
+	templateParameters["CtlplaneIp"] = ip
 	templateParameters["CtlplaneInterface"] = instance.Spec.CtlplaneInterface
 	templateParameters["CtlplaneGateway"] = ctlPlaneNetwork.Spec.Gateway
-	templateParameters["CtlplaneNetmask"] = fmt.Sprintf("%d.%d.%d.%d", netMask[0], netMask[1], netMask[2], netMask[3])
+	templateParameters["CtlplaneNetmask"] = net.IP(netMask).String()
 	if len(instance.Spec.BootstrapDNS) > 0 {
 		templateParameters["CtlplaneDns"] = instance.Spec.BootstrapDNS
 	} else {
@@ -961,6 +993,34 @@ func (r *OpenStackBaremetalSetReconciler) baremetalHostProvision(
 	} else {
 		templateParameters["CtlplaneDnsSearch"] = osNetCfg.Spec.DNSSearchDomains
 	}
+
+	routes := []map[string]string{}
+	for _, route := range ctlPlaneNetwork.Spec.Routes {
+		_, routeNetwork, err := net.ParseCIDR(route.Destination)
+		if err != nil {
+			cond.Message = fmt.Sprintf("Error parsing route CIDR %v for network %v", route.Destination, netNameLower)
+			cond.Reason = shared.CommonCondReasonOSNetError
+			cond.Type = shared.CommonCondTypeError
+			err = common.WrapErrorForObject(cond.Message, instance, err)
+			return err
+		}
+		routes = append(routes, map[string]string{"network": routeNetwork.IP.String(), "netmask": net.IP(routeNetwork.Mask).String(), "gateway": route.Nexthop})
+	}
+
+	templateParameters["CtlplaneRoutes"] = routes
+
+	templateParameters["CtlplaneVlan"] = ctlPlaneNetwork.Spec.Vlan
+	templateParameters["CtlplaneMtu"] = ctlPlaneNetwork.Spec.MTU
+
+	macAddress := ""
+	for _, nic := range foundBaremetalHost.Status.HardwareDetails.NIC {
+		if nic.Name == instance.Spec.CtlplaneInterface {
+			macAddress = nic.MAC
+			break
+		}
+	}
+	// TODO: err if macAddress not found
+	templateParameters["CtlplaneMacAddress"] = macAddress
 
 	networkDataSecretName := fmt.Sprintf(baremetalset.CloudInitNetworkDataSecretName, instance.Name, bmh)
 
@@ -994,15 +1054,6 @@ func (r *OpenStackBaremetalSetReconciler) baremetalHostProvision(
 	//
 	// Provision the BaremetalHost
 	//
-	foundBaremetalHost := &metal3v1alpha1.BareMetalHost{}
-	err = r.Get(ctx, types.NamespacedName{Name: bmh, Namespace: "openshift-machine-api"}, foundBaremetalHost)
-	if err != nil {
-		cond.Message = fmt.Sprintf("Failed to get %s %s", foundBaremetalHost.Kind, foundBaremetalHost.Name)
-		cond.Reason = shared.BaremetalHostCondReasonGetError
-		cond.Type = shared.CommonCondTypeError
-
-		return err
-	}
 
 	op, err := controllerutil.CreateOrPatch(ctx, r.Client, foundBaremetalHost, func() error {
 		//
@@ -1178,10 +1229,12 @@ func (r *OpenStackBaremetalSetReconciler) baremetalHostCleanup(
 	return nil
 }
 
-/* deleteOwnerRefLabeledObjects - cleans up namespaced objects outside the default namespace
-   using the owner reference labels added.
-   List of objects which get cleaned:
-   - user-data secret, openshift-machine-api namespace
+/*
+deleteOwnerRefLabeledObjects - cleans up namespaced objects outside the default namespace
+
+	using the owner reference labels added.
+	List of objects which get cleaned:
+	- user-data secret, openshift-machine-api namespace
 */
 func (r *OpenStackBaremetalSetReconciler) deleteOwnerRefLabeledObjects(
 	ctx context.Context,
@@ -1248,9 +1301,7 @@ func (r *OpenStackBaremetalSetReconciler) getPasswordSecret(
 	return passwordSecret, ctrl.Result{}, nil
 }
 
-//
-//   check/update instance status for annotated for deletion marked BMs
-//
+// check/update instance status for annotated for deletion marked BMs
 func (r *OpenStackBaremetalSetReconciler) checkBMHsAnnotatedForDeletion(
 	ctx context.Context,
 	instance *ospdirectorv1beta1.OpenStackBaremetalSet,

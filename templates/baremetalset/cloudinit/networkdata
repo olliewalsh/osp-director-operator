@@ -1,14 +1,36 @@
 links:
-- name: {{ .CtlplaneInterface }}
-  id: {{ .CtlplaneInterface }}
-  type: vif
+- id: {{ .CtlplaneInterface }}
+  type: phy
+  mtu: {{ .CtlplaneMtu }}
+  ethernet_mac_address: {{ .CtlplaneMacAddress}}
+{{- if not (eq .CtlplaneVlan 0) }}
+- id: {{ .CtlplaneInterface }}.{{ printf "%d" .CtlplaneVlan }}
+  type: vlan
+  vlan_link: {{ .CtlplaneInterface }}
+  vlan_id: {{ .CtlplaneVlan }}
+  vlan_mac_address: {{ .CtlplaneMacAddress}}
+  mtu: {{ .CtlplaneMtu }}
+{{- end }}
 networks:
 - netmask: {{ .CtlplaneNetmask }}
+{{- if not (eq .CtlplaneVlan 0) }}
+  link: {{ .CtlplaneInterface }}.{{ printf "%d" .CtlplaneVlan }}
+  id: {{ .CtlplaneInterface }}.{{ printf "%d" .CtlplaneVlan }}
+{{- else }}
   link: {{ .CtlplaneInterface }}
   id: {{ .CtlplaneInterface }}
+{{- end }}
   ip_address: {{ .CtlplaneIp }}
   type: ipv4
   gateway: {{ .CtlplaneGateway }}
+  {{- if not (eq (len .CtlplaneRoutes) 0) }}
+  routes:
+    {{- range $value := .CtlplaneRoutes }}
+    - network: {{ $value.network }}
+      netmask: {{ $value.netmask }}
+      gateway: {{ $value.gateway }}
+    {{- end }}
+  {{- end }}
 {{- if not (eq (len .CtlplaneDns) 0) }}
 services:
 - type: dns-nameserver

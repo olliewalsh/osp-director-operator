@@ -1,6 +1,13 @@
 version: 2
+{{- if eq .CtlplaneVlan 0 }}
 ethernets:
   {{ .CtlplaneInterface }}:
+{{- else }}
+vlans:
+  {{ .CtlplaneInterface }}.{{ printf "%d" .CtlplaneVlan }}:
+    link: {{ .CtlplaneInterface }}
+{{- end }}
+    mtu: {{ .CtlplaneMtu }}
     addresses: [ "{{ .ControllerIP }}" ]
     {{- if not (eq (len .CtlplaneDns) 0) }}
     nameservers:
@@ -11,9 +18,16 @@ ethernets:
         {{- end }}
       {{- end }}
       addresses:
-         {{- range $value := .CtlplaneDns }}
-         - {{ $value }}
-         {{- end }}
+        {{- range $value := .CtlplaneDns }}
+        - {{ $value }}
+        {{- end }}
+    {{- end }}
+    {{- if not (eq (len .CtlplaneRoutes) 0) }}
+    routes:
+      {{- range $value := .CtlplaneRoutes }}
+      - to: {{ $value.to }}
+        via: {{ $value.via }}
+      {{- end }}
     {{- end }}
 {{- if .Gateway }}
     {{ .Gateway }}

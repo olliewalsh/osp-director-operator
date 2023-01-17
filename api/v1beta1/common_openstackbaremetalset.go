@@ -94,7 +94,7 @@ func VerifyBaremetalStatusHostRefs(
 		found := false
 
 		for _, bmh := range allBaremetalHosts.Items {
-			if bmh.Name == bmhStatus.HostRef {
+			if bmh.Name == bmhStatus.HostRef || shared.HostRefInitState == bmhStatus.HostRef {
 				found = true
 				break
 			}

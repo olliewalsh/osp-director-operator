@@ -685,7 +685,6 @@ func (r *OpenStackVMSetReconciler) generateVirtualMachineNetworkData(
 		routes = append(routes, map[string]string{"to": route.Destination, "via": route.Nexthop})
 	}
 	templateParameters["CtlplaneRoutes"] = routes
-	templateParameters["CtlplaneVlan"] = network.Spec.Vlan
 	templateParameters["CtlplaneMtu"] = network.Spec.MTU
 
 	networkdata := []common.Template{

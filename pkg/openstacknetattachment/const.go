@@ -42,12 +42,12 @@ const (
 			"type": "bridge",
 			"bridge": "{{ .BridgeName }}",
 			"mtu": {{ .MTU }},
-{{- if ne .Vlan "0"}}
-			"vlan": {{ .Vlan }},
-{{- end }}
+			{{- if ne .Vlan "0"}}
+				"vlan": {{ .Vlan }},
+			{{- end }}
 			"ipam": {
 {{- if .Static }}
-					"type": "static"
+				"type": "static"
 {{- end }}
 			}
 		},
@@ -58,7 +58,7 @@ const (
 			"type": "route-override",
 			"addroutes": {{ .Routes }}
 		}
-		]
+	]
 }
 `
 )

@@ -1,12 +1,6 @@
 version: 2
-{{- if eq .CtlplaneVlan 0 }}
 ethernets:
   {{ .CtlplaneInterface }}:
-{{- else }}
-vlans:
-  {{ .CtlplaneInterface }}.{{ printf "%d" .CtlplaneVlan }}:
-    link: {{ .CtlplaneInterface }}
-{{- end }}
     mtu: {{ .CtlplaneMtu }}
     addresses: [ "{{ .ControllerIP }}" ]
     {{- if not (eq (len .CtlplaneDns) 0) }}

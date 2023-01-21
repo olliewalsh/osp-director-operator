@@ -978,7 +978,7 @@ outer:
 
 	// Network data cloud-init secret
 	templateParameters = make(map[string]interface{})
-	templateParameters["CtlplaneIp"] = ip
+	templateParameters["CtlplaneIp"] = ip.String()
 	templateParameters["CtlplaneInterface"] = instance.Spec.CtlplaneInterface
 	templateParameters["CtlplaneGateway"] = ctlPlaneNetwork.Spec.Gateway
 	templateParameters["CtlplaneNetmask"] = net.IP(netMask).String()
@@ -1009,18 +1009,7 @@ outer:
 
 	templateParameters["CtlplaneRoutes"] = routes
 
-	templateParameters["CtlplaneVlan"] = ctlPlaneNetwork.Spec.Vlan
 	templateParameters["CtlplaneMtu"] = ctlPlaneNetwork.Spec.MTU
-
-	macAddress := ""
-	for _, nic := range foundBaremetalHost.Status.HardwareDetails.NIC {
-		if nic.Name == instance.Spec.CtlplaneInterface {
-			macAddress = nic.MAC
-			break
-		}
-	}
-	// TODO: err if macAddress not found
-	templateParameters["CtlplaneMacAddress"] = macAddress
 
 	networkDataSecretName := fmt.Sprintf(baremetalset.CloudInitNetworkDataSecretName, instance.Name, bmh)
 

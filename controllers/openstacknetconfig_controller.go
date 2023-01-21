@@ -641,11 +641,12 @@ func (r *OpenStackNetConfigReconciler) applyNetConfig(
 		osNet.Spec.NameLower = subnet.Name
 		if net.IsControlPlane {
 			osNet.Spec.DomainName = fmt.Sprintf("%s.%s", ospdirectorv1beta1.ControlPlaneNameLower, instance.Spec.DomainName)
+			// TripleO does not support VLAN on ctlplane
 		} else {
 			osNet.Spec.DomainName = fmt.Sprintf("%s.%s", strings.ToLower(net.Name), instance.Spec.DomainName)
+			osNet.Spec.Vlan = subnet.Vlan
 		}
 		osNet.Spec.VIP = net.VIP
-		osNet.Spec.Vlan = subnet.Vlan
 
 		if subnet.IPv4.Cidr != "" {
 			osNet.Spec.AllocationEnd = subnet.IPv4.AllocationEnd
@@ -796,9 +797,7 @@ func (r *OpenStackNetConfigReconciler) osnetCleanup(
 	return nil
 }
 
-//
 // create or update the OpenStackMACAddress object
-//
 func (r *OpenStackNetConfigReconciler) createOrUpdateOpenStackMACAddress(
 	ctx context.Context,
 	instance *ospdirectorv1beta1.OpenStackNetConfig,
@@ -1049,9 +1048,7 @@ func (r *OpenStackNetConfigReconciler) getMACStatus(
 
 }
 
-//
 // create or update the OpenStackMACAddress object
-//
 func (r *OpenStackNetConfigReconciler) ensureMACReservation(
 	instance *ospdirectorv1beta1.OpenStackNetConfig,
 	cond *shared.Condition,
@@ -1142,9 +1139,7 @@ func (r *OpenStackNetConfigReconciler) ensureMACReservation(
 	return nodeMACReservation, nil
 }
 
-//
 // allMACReservations - get all reservations from static + dynamic created
-//
 func (r *OpenStackNetConfigReconciler) allMACReservations(
 	instance *ospdirectorv1beta1.OpenStackNetConfig,
 	macAddress *ospdirectorv1beta1.OpenStackMACAddress,
@@ -1166,9 +1161,7 @@ func (r *OpenStackNetConfigReconciler) allMACReservations(
 	return reservations
 }
 
-//
 // add reservations from deleted nodes if Spec.PreserveReservations
-//
 func (r *OpenStackNetConfigReconciler) preserveMACReservations(
 	macAddress *ospdirectorv1beta1.OpenStackMACAddress,
 	roleMACReservation *map[string]ospdirectorv1beta1.OpenStackMACNodeReservation,
@@ -1189,9 +1182,7 @@ func (r *OpenStackNetConfigReconciler) preserveMACReservations(
 
 }
 
-//
 // create or update the OpenStackMACAddress object
-//
 func (r *OpenStackNetConfigReconciler) ensureIPReservation(
 	ctx context.Context,
 	instance *ospdirectorv1beta1.OpenStackNetConfig,
@@ -1299,10 +1290,8 @@ func (r *OpenStackNetConfigReconciler) ensureIPReservation(
 	return osNet.Spec.RoleReservations, nil
 }
 
-//
 // ensureIPs - create IP reservations for all nodes of a role.
 // If there is already an existing IP its being reused
-//
 func (r *OpenStackNetConfigReconciler) ensureIPs(
 	instance *ospdirectorv1beta1.OpenStackNetConfig,
 	cond *shared.Condition,
@@ -1470,9 +1459,7 @@ func (r *OpenStackNetConfigReconciler) ensureIPs(
 	return nil
 }
 
-//
 // getNetDesiredCount - get the total of all networks subnets
-//
 func (r *OpenStackNetConfigReconciler) getNetDesiredCount(
 	networks []ospdirectorv1beta1.Network,
 ) int {

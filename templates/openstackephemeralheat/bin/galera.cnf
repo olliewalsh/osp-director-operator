@@ -21,6 +21,7 @@ port = 3306
 query_cache_limit = 1M
 query_cache_size = 16M
 skip-external-locking
+skip_name_resolve = on
 socket = /var/lib/mysql/mysql.sock
 ssl = false
 thread_cache_size = 8

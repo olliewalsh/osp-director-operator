@@ -250,11 +250,11 @@ func (r *OpenStackEphemeralHeatReconciler) generatePasswordSecret(
 	cmLabels := common.GetLabels(instance, openstackephemeralheat.AppLabel, map[string]string{})
 
 	// only generate the password secret once
-	passwordSecret, _, err := common.GetSecret(ctx, r, "ephemeral-heat-"+instance.Name, instance.Namespace)
+	passwordSecret, _, err := common.GetSecret(ctx, r, "ephemeral-heat-"+string(instance.UID), instance.Namespace)
 
 	if err != nil {
 		if k8s_errors.IsNotFound(err) {
-			passwordSecret = openstackephemeralheat.PasswordSecret("ephemeral-heat-"+instance.Name, instance.Namespace, cmLabels, k8s_rand.String(10))
+			passwordSecret = openstackephemeralheat.PasswordSecret("ephemeral-heat-"+string(instance.UID), instance.Namespace, cmLabels, k8s_rand.String(10))
 			_, op, err := common.CreateOrUpdateSecret(ctx, r, instance, passwordSecret)
 			if err != nil {
 				cond.Message = fmt.Sprintf("Error creating password secret for %s %s", instance.Kind, instance.Name)

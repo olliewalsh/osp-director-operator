@@ -58,7 +58,7 @@ func HeatAPIPod(instance *ospdirectorv1beta1.OpenStackEphemeralHeat) *corev1.Pod
 							ValueFrom: &corev1.EnvVarSource{
 								SecretKeyRef: &corev1.SecretKeySelector{
 									LocalObjectReference: corev1.LocalObjectReference{
-										Name: "ephemeral-heat-" + instance.Name,
+										Name: "ephemeral-heat-" + string(instance.UID),
 									},
 									Key: "password",
 								},
@@ -77,7 +77,7 @@ func HeatAPIPod(instance *ospdirectorv1beta1.OpenStackEphemeralHeat) *corev1.Pod
 							ValueFrom: &corev1.EnvVarSource{
 								SecretKeyRef: &corev1.SecretKeySelector{
 									LocalObjectReference: corev1.LocalObjectReference{
-										Name: "ephemeral-heat-" + instance.Name,
+										Name: "ephemeral-heat-" + string(instance.UID),
 									},
 									Key: "password",
 								},

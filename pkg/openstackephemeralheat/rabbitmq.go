@@ -69,7 +69,7 @@ func RabbitmqPod(instance *ospdirectorv1beta1.OpenStackEphemeralHeat) *corev1.Po
 							ValueFrom: &corev1.EnvVarSource{
 								SecretKeyRef: &corev1.SecretKeySelector{
 									LocalObjectReference: corev1.LocalObjectReference{
-										Name: "ephemeral-heat-" + instance.Name,
+										Name: "ephemeral-heat-" + string(instance.UID),
 									},
 									Key: "password",
 								},

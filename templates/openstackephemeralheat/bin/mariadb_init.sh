@@ -1,4 +1,4 @@
-if [ -e /var/lib/mysql/mysql ]; then exit 0; fi
+if [ -e /var/lib/mysql/mysql ]; then rm -rf /var/lib/mysql/*; fi
 #echo -e "\n[mysqld]\nwsrep_provider=none" >> /etc/my.cnf
 #kolla_set_configs
 #sudo -u mysql -E kolla_extend_start

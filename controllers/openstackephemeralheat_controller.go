@@ -223,6 +223,7 @@ func (r *OpenStackEphemeralHeatReconciler) SetupWithManager(mgr ctrl.Manager) er
 		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.Service{}).
 		Owns(&appsv1.ReplicaSet{}).
+		Owns(&corev1.Secret{}).
 		Complete(r)
 }
 

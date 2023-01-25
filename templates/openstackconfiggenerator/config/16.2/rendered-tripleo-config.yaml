@@ -69,7 +69,7 @@ parameter_defaults:
 {{- range $netname, $ip := $node.IPaddr }}
 {{- if $node.VIP }}
 {{- if $ip.Network.IsControlPlane }}
-  {{ $role }}ControlPlaneSubnet: {{ $netname }}
+  {{ $role.Name }}ControlPlaneSubnet: {{ $netname }}
 {{- else }}
   {{ with (index $.NetworksMap $netname) }}{{ .Name }}{{ end }}NetworkVip: {{ $ip.IPaddr }}
 {{- end }}

@@ -48,18 +48,44 @@ parameter_defaults:
 {{- if $node.VIP }}
     control_virtual_ip:
 {{- else }}
-    {{ $node.Hostname }}-{{ $netname }}:
+    {{ $node.Hostname }}-{{ $ip.Network.ID }}:
 {{- end }}
       fixed_ips:
         - ip_address: {{ $ip.IPaddr }}
       subnets:
         - cidr: {{ $ip.Network.Cidr }}
+          {{- range $_, $net := $.NetworksMap }}
+          {{- range $subnetname, $subnet := $net.Subnets }}
+          {{- if eq $subnetname $ip.Network.ID }}
+          gateway_ip: {{ $subnet.IPv4.Gateway }}
+          host_routes: {{ if eq (len $subnet.IPv4.Routes) 0 }}[]{{ else }}
+          {{- range $_, $route := $subnet.IPv4.Routes }}
+            - destination: '{{ $route.Destination }}'
+              nexthop: '{{ $route.Nexthop }}'
+          {{- end }}
+          {{- end }}
+          {{- end }}
+          {{- end }}
+          {{- end }}
       network:
         tags:
           - {{ $ip.Network.Cidr }}
+
 {{- end }}
 {{- end }}
 {{- end }}
+{{- end }}
+
+  #
+  # <Role>SubnetName
+{{- range $roleid, $role := .RolesMap }}
+  {{- if not $role.IsControlPlane }}
+  {{- range $netid, $net := $role.Networks }}
+  {{- if $net.IsControlPlane }}
+  {{ $role.Name }}ControlPlaneSubnet: "{{ $netid }}"
+  {{- end }}
+  {{- end }}
+  {{- end }}
 {{- end }}
 
   #
@@ -78,17 +104,6 @@ parameter_defaults:
 {{- end }}
 {{- end }}
 
-  #
-  # ControlPlaneSubnet
-{{- range $roleid, $role := .RolesMap }}
-{{- if not $role.IsControlPlane }}
-{{- range $netid, $net := $role.Networks }}
-{{- if $net.IsControlPlane }}
-  {{ $role.Name }}ControlPlaneSubnet: {{ $net.NameLower }}-subnet
-{{- end }}
-{{- end }}
-{{- end }}
-{{- end }}
   #
   # HostnameFormat and RoleCount
 {{- range $roleid, $role := .RolesMap }}
@@ -127,36 +142,3 @@ parameter_defaults:
 {{- end }}
 {{- end }}
 {{- end }}
-  #
-  # CtlplaneNetworkAttributes
-  CtlplaneNetworkAttributes:
-    {{- range $netname, $net := .NetworksMap }}
-    {{- if $net.IsControlPlane }}
-    {{- $subnetname := $net.DefaultSubnet.Name }}
-    {{- $subnet := $net.DefaultSubnet }}
-    network:
-      dns_domain: {{ $net.DomainName }}.
-      mtu: {{ $net.MTU }}
-      name: {{ $net.NameLower }}
-      tags:
-      - {{ $subnet.IPv4.Cidr }}
-    {{- /* subnets start */}}
-    subnets:
-      {{ $subnetname }}-subnet:
-        cidr: {{ $subnet.IPv4.Cidr }}
-        dns_nameservers: {{ if eq (len $net.DNSServers) 0 }}[]{{ else }}
-          {{- range $idx, $dnsServer := $net.DNSServers }}
-          - {{ $dnsServer }}
-          {{- end }}
-          {{- end }}
-        gateway_ip: {{ $subnet.IPv4.Gateway }}
-        host_routes: {{ if eq (len $subnet.IPv4.Routes) 0 }}[]{{ else }}
-          {{- range $netname, $route := $subnet.IPv4.Routes }}
-          - destination: '{{ $route.Destination }}'
-            nexthop: '{{ $route.Nexthop }}'
-          {{- end }}
-          {{- end }}
-        ip_version: 4
-        name: {{ $subnetname }}-subnet
-    {{- end }}
-    {{- end }}

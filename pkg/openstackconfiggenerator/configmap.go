@@ -35,8 +35,9 @@ import (
 )
 
 type roleNetworkType struct {
-	Name            string
-	NameLower       string
+	ID              string // e.g. ctlplane_leaf1
+	Name            string // e.g. Control
+	NameLower       string // e.g. ctlplane
 	Cidr            string // e.g. 192.168.24.0/24
 	NetAddr         string // e.g. 192.168.24.0
 	CidrSuffix      int    // e.g. 24
@@ -434,6 +435,7 @@ func createRolesMap(
 				nameLower := networkMappingList[osnet.Spec.NameLower]
 
 				rolesMap[roleName].Networks[osnet.Spec.NameLower] = &roleNetworkType{
+					ID:              osnet.Spec.NameLower,
 					Name:            osnet.Spec.Name,
 					NameLower:       nameLower,
 					Cidr:            osnet.Spec.Cidr,

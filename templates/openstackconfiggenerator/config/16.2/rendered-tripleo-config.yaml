@@ -48,7 +48,7 @@ parameter_defaults:
 {{- if $node.VIP }}
     control_virtual_ip:
 {{- else }}
-    {{ $node.Hostname }}-{{ $ip.Network.ID }}:
+    {{ $node.Hostname }}-{{ $netname }}:
 {{- end }}
       fixed_ips:
         - ip_address: {{ $ip.IPaddr }}
@@ -74,18 +74,6 @@ parameter_defaults:
 {{- end }}
 {{- end }}
 {{- end }}
-{{- end }}
-
-  #
-  # <Role>SubnetName
-{{- range $roleid, $role := .RolesMap }}
-  {{- if not $role.IsControlPlane }}
-  {{- range $netid, $net := $role.Networks }}
-  {{- if $net.IsControlPlane }}
-  {{ $role.Name }}ControlPlaneSubnet: "{{ $netid }}"
-  {{- end }}
-  {{- end }}
-  {{- end }}
 {{- end }}
 
   #

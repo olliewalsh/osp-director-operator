@@ -124,7 +124,7 @@ resources:
               - type: interface
                 name: nic2
                 mtu:
-                  get_param: {{ range $_, $net := .Role.Networks }}{{ if $net.IsContolPlane }}{{ $net.MTU }}{{ end }}{{ end }}
+                  get_param: {{ range $_, $net := .Role.Networks }}{{ if $net.IsControlPlane }}{{ $net.MTU }}{{ end }}{{ end }}
                 use_dhcp: false
                 dns_servers:
                   get_param: DnsServers

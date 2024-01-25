@@ -70,6 +70,7 @@ func GetAllIPReservations(
 				IP:       res.IP,
 				Hostname: hostname,
 				Deleted:  res.Deleted,
+				Role:     res.Role,
 			},
 		)
 
@@ -94,6 +95,7 @@ func GetAllIPReservations(
 						IP:       res.IP,
 						Hostname: res.Hostname,
 						Deleted:  res.Deleted,
+						Role:     res.Role,
 					},
 				)
 			}

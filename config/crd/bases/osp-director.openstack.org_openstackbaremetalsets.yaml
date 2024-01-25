@@ -174,6 +174,10 @@ spec:
                         type: object
                     type: object
                 type: object
+              hostnameBase:
+                description: HostnameBase the base string used to generate hostnames.
+                  Defaults to RoleName. Can not be modified on update.
+                type: string
               networks:
                 description: Networks the name(s) of the OpenStackNetworks used to
                   generate IPs

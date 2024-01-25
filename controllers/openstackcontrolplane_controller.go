@@ -768,6 +768,7 @@ func (r *OpenStackControlPlaneReconciler) createOrUpdateVMSets(
 			vmSet.Spec.CtlplaneInterface = vmRole.CtlplaneInterface
 			vmSet.Spec.Networks = vmRole.Networks
 			vmSet.Spec.RoleName = vmRole.RoleName
+			vmSet.Spec.HostnameBase = vmRole.HostnameBase
 			vmSet.Spec.IsTripleoRole = vmRole.IsTripleoRole
 			if instance.Spec.PasswordSecret != "" {
 				vmSet.Spec.PasswordSecret = instance.Spec.PasswordSecret
@@ -953,6 +954,7 @@ func (r *OpenStackControlPlaneReconciler) ensureVIPs(
 		instance,
 		cond,
 		controlplane.Role,
+		controlplane.Role,
 		vipNetworksList,
 		1,
 		true,
@@ -981,6 +983,7 @@ func (r *OpenStackControlPlaneReconciler) ensureVIPs(
 				r,
 				instance,
 				cond,
+				service,
 				service,
 				[]string{network},
 				1,

@@ -168,6 +168,14 @@ func (r *OpenStackVMSet) ValidateUpdate(old runtime.Object) error {
 	}
 
 	//
+	// Forbid hostname and rolename changes
+	//
+	if !(equality.Semantic.DeepEqual(r.Spec.RoleName, oldInstance.Spec.RoleName) &&
+		equality.Semantic.DeepEqual(r.Spec.HostnameBase, oldInstance.Spec.HostnameBase)) {
+		return fmt.Errorf("cannot change \"roleName\" nor \"hostnameBase\"")
+	}
+
+	//
 	// validate that for all configured subnets an osnet exists
 	//
 	if err := ospdirectorv1beta1.ValidateNetworks(r.GetNamespace(), r.Spec.Networks); err != nil {

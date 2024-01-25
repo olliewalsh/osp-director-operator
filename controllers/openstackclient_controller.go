@@ -273,6 +273,7 @@ func (r *OpenStackClientReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		instance,
 		cond,
 		instance.Name,
+		instance.Name,
 		instance.Spec.Networks,
 		1,
 		false,

@@ -117,6 +117,14 @@ func (r *OpenStackBaremetalSet) ValidateUpdate(old runtime.Object) error {
 	}
 
 	//
+	// Forbid hostname and rolename changes
+	//
+	if !(equality.Semantic.DeepEqual(r.Spec.RoleName, oldInstance.Spec.RoleName) &&
+		equality.Semantic.DeepEqual(r.Spec.HostnameBase, oldInstance.Spec.HostnameBase)) {
+		return fmt.Errorf("cannot change \"roleName\" nor \"hostnameBase\"")
+	}
+
+	//
 	// Force BmhLabelSelector and HardwareReqs to remain the same unless the *old* count was 0.
 	// We do this to maintain consistency across the gathered list of BMHs during reconcile.
 	//

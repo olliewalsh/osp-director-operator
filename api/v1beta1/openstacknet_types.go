@@ -28,14 +28,16 @@ type IPReservation struct {
 	VIP      bool   `json:"vip"`
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=false
-	ServiceVIP bool `json:"serviceVIP,omitempty"`
-	Deleted    bool `json:"deleted"`
+	ServiceVIP bool   `json:"serviceVIP,omitempty"`
+	Deleted    bool   `json:"deleted"`
+	Role       string `json:"role"`
 }
 
 // NodeIPReservation contains an IP and Deleted flag
 type NodeIPReservation struct {
 	IP      string `json:"ip"`
 	Deleted bool   `json:"deleted"`
+	Role    string `json:"role"`
 }
 
 // Route definition

@@ -430,6 +430,11 @@ func (r *OpenStackVMSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
+	hostnameBase := instance.Spec.RoleName
+	if instance.Spec.HostnameBase != "" {
+		hostnameBase = instance.Spec.HostnameBase
+	}
+
 	//
 	// create IPs for all networks
 	//
@@ -438,6 +443,7 @@ func (r *OpenStackVMSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		r,
 		instance,
 		cond,
+		hostnameBase,
 		instance.Spec.RoleName,
 		instance.Spec.Networks,
 		instance.Spec.VMCount,

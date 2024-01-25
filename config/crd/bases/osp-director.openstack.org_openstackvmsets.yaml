@@ -396,6 +396,10 @@ spec:
                 items:
                   type: string
                 type: array
+              hostnameBase:
+                description: HostnameBase the base string used to generate hostnames.
+                  Defaults to RoleName. Can not be modified on update.
+                type: string
               ioThreadsPolicy:
                 description: IOThreadsPolicy - IO thread policy for the domain. Currently
                   valid policies are shared and auto. However, if any disk requests

@@ -46,6 +46,8 @@ type OpenStackBaremetalSetSpec struct {
 	Networks []string `json:"networks"`
 	// RoleName the name of the TripleO role this OpenStackBaremetalSet is associated with. If it is a TripleO role, the name must match.
 	RoleName string `json:"roleName"`
+	// HostnameBase the base string used to generate hostnames. Defaults to RoleName. Can not be modified on update.
+	HostnameBase string `json:"hostnameBase,omitempty"`
 	// PasswordSecret the name of the secret used to optionally set the root pwd by adding
 	// NodeRootPassword: <base64 enc pwd>
 	// to the secret data

@@ -1223,7 +1223,7 @@ func (r *OpenStackNetConfigReconciler) ensureIPReservation(
 
 	for _, osIPset := range osIPsetList.Items {
 
-		roleName := osIPset.Spec.RoleName
+		hostnameBase := osIPset.Name
 
 		//
 		// For backward compatability check if owning object is osClient and set Role to <openstackclient.Role><instance.Name>
@@ -1243,10 +1243,10 @@ func (r *OpenStackNetConfigReconciler) ensureIPReservation(
 				return nil, err
 			}
 		} else {
-			roleName = fmt.Sprintf("%s%s", openstackclient.Role, osIPset.Spec.RoleName)
+			hostnameBase = fmt.Sprintf("%s%s", openstackclient.Role, osIPset.Name)
 		}
 
-		allRoles[roleName] = true
+		allRoles[hostnameBase] = true
 
 		//
 		// are there new networks added to the CR?
@@ -1255,7 +1255,7 @@ func (r *OpenStackNetConfigReconciler) ensureIPReservation(
 			instance,
 			cond,
 			osNet,
-			roleName,
+			hostnameBase,
 			common.SortMapByValue(osIPset.GetHostnames()),
 			osIPset.Spec.VIP,
 			osIPset.Spec.ServiceVIP,
@@ -1321,6 +1321,7 @@ func (r *OpenStackNetConfigReconciler) ensureIPs(
 					ospdirectorv1beta1.IPReservation{
 						IP:         nodeNetIPReservation,
 						Hostname:   nodeName,
+						Role:       roleName,
 						ServiceVIP: serviceVIP,
 						VIP:        vip,
 					},
@@ -1354,6 +1355,7 @@ func (r *OpenStackNetConfigReconciler) ensureIPs(
 			nodeReservation := ospdirectorv1beta1.IPReservation{
 				IP:         reservation.IP,
 				Hostname:   hostname,
+				Role:       roleName,
 				VIP:        vip,
 				ServiceVIP: serviceVIP,
 				Deleted:    false,

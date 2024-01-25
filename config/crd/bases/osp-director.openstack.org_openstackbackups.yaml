@@ -350,6 +350,11 @@ spec:
                                           type: object
                                       type: object
                                   type: object
+                                hostnameBase:
+                                  description: HostnameBase the base string used to
+                                    generate hostnames. Defaults to RoleName. Can
+                                    not be modified on update.
+                                  type: string
                                 networks:
                                   description: Networks the name(s) of the OpenStackNetworks
                                     used to generate IPs
@@ -2228,6 +2233,8 @@ spec:
                                               type: string
                                             ip:
                                               type: string
+                                            role:
+                                              type: string
                                             serviceVIP:
                                               default: false
                                               type: boolean
@@ -2237,6 +2244,7 @@ spec:
                                           - deleted
                                           - hostname
                                           - ip
+                                          - role
                                           - vip
                                           type: object
                                         type: array
@@ -2331,9 +2339,12 @@ spec:
                                         type: boolean
                                       ip:
                                         type: string
+                                      role:
+                                        type: string
                                     required:
                                     - deleted
                                     - ip
+                                    - role
                                     type: object
                                   description: Reservations MAC address reservations
                                     per node
@@ -3384,6 +3395,11 @@ spec:
                                           type: object
                                       type: object
                                   type: object
+                                hostnameBase:
+                                  description: HostnameBase the base string used to
+                                    generate hostnames. Defaults to RoleName. Can
+                                    not be modified on update.
+                                  type: string
                                 networks:
                                   description: Networks the name(s) of the OpenStackNetworks
                                     used to generate IPs
@@ -3988,6 +4004,11 @@ spec:
                                           GB - use RootDisk.DiskSize instead
                                         format: int32
                                         type: integer
+                                      hostnameBase:
+                                        description: HostnameBase the base string
+                                          used to generate hostnames. Defaults to
+                                          RoleName. Can not be modified on update.
+                                        type: string
                                       ioThreadsPolicy:
                                         description: IOThreadsPolicy - IO thread policy
                                           for the domain. Currently valid policies
@@ -5427,6 +5448,8 @@ spec:
                                               type: string
                                             ip:
                                               type: string
+                                            role:
+                                              type: string
                                             serviceVIP:
                                               default: false
                                               type: boolean
@@ -5436,6 +5459,7 @@ spec:
                                           - deleted
                                           - hostname
                                           - ip
+                                          - role
                                           - vip
                                           type: object
                                         type: array
@@ -5530,9 +5554,12 @@ spec:
                                         type: boolean
                                       ip:
                                         type: string
+                                      role:
+                                        type: string
                                     required:
                                     - deleted
                                     - ip
+                                    - role
                                     type: object
                                   description: Reservations MAC address reservations
                                     per node
@@ -5949,6 +5976,11 @@ spec:
                                   items:
                                     type: string
                                   type: array
+                                hostnameBase:
+                                  description: HostnameBase the base string used to
+                                    generate hostnames. Defaults to RoleName. Can
+                                    not be modified on update.
+                                  type: string
                                 ioThreadsPolicy:
                                   description: IOThreadsPolicy - IO thread policy
                                     for the domain. Currently valid policies are shared

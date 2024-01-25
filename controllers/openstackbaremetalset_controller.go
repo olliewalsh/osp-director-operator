@@ -383,6 +383,11 @@ func (r *OpenStackBaremetalSetReconciler) Reconcile(ctx context.Context, req ctr
 		return ctrl.Result{}, err
 	}
 
+	hostnameBase := instance.Spec.RoleName
+	if instance.Spec.HostnameBase != "" {
+		hostnameBase = instance.Spec.HostnameBase
+	}
+
 	//
 	// create openstackclient IPs for all networks
 	//
@@ -391,6 +396,7 @@ func (r *OpenStackBaremetalSetReconciler) Reconcile(ctx context.Context, req ctr
 		r,
 		instance,
 		cond,
+		hostnameBase,
 		instance.Spec.RoleName,
 		instance.Spec.Networks,
 		instance.Spec.Count,

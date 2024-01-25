@@ -121,6 +121,8 @@ spec:
                             type: string
                           ip:
                             type: string
+                          role:
+                            type: string
                           serviceVIP:
                             default: false
                             type: boolean
@@ -130,6 +132,7 @@ spec:
                         - deleted
                         - hostname
                         - ip
+                        - role
                         - vip
                         type: object
                       type: array
@@ -219,9 +222,12 @@ spec:
                       type: boolean
                     ip:
                       type: string
+                    role:
+                      type: string
                   required:
                   - deleted
                   - ip
+                  - role
                   type: object
                 description: Reservations MAC address reservations per node
                 type: object

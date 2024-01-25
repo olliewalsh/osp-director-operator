@@ -25,6 +25,7 @@ func EnsureIPs(
 	obj client.Object,
 	cond *shared.Condition,
 	name string,
+	roleName string,
 	networks []string,
 	hostCount int,
 	vip bool,
@@ -44,6 +45,7 @@ func EnsureIPs(
 		obj,
 		cond,
 		name,
+		roleName,
 		networks,
 		hostCount,
 		vip,
@@ -135,6 +137,7 @@ func createOrUpdateIPSet(
 	obj client.Object,
 	cond *shared.Condition,
 	name string,
+	role string,
 	networks []string,
 	hostCount int,
 	vip bool,
@@ -158,7 +161,7 @@ func createOrUpdateIPSet(
 
 		ipSet.Spec.HostCount = hostCount
 		ipSet.Spec.Networks = networks
-		ipSet.Spec.RoleName = name
+		ipSet.Spec.RoleName = role
 		ipSet.Spec.VIP = vip
 		ipSet.Spec.ServiceVIP = serviceVIP
 		ipSet.Spec.DeletedHosts = deletedHosts

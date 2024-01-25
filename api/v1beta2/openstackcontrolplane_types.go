@@ -119,6 +119,8 @@ type OpenStackVirtualMachineRoleSpec struct {
 
 	// RoleName the name of the TripleO role this VM Spec is associated with. If it is a TripleO role, the name must match.
 	RoleName string `json:"roleName"`
+	// HostnameBase the base string used to generate hostnames. Defaults to RoleName. Can not be modified on update.
+	HostnameBase string `json:"hostnameBase,omitempty"`
 	// in case of external functionality, like 3rd party network controllers, set to false to ignore role in rendered overcloud templates.
 	// +kubebuilder:default=true
 	IsTripleoRole bool `json:"isTripleoRole,omitempty"`

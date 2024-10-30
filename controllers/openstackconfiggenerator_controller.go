@@ -225,8 +225,9 @@ func (r *OpenStackConfigGeneratorReconciler) Reconcile(ctx context.Context, req 
 	//
 	// check CAConfigMap is there
 	//
+	var CABundle []byte
 	if controlPlane.Spec.CAConfigMap != "" {
-		_, ctrlResult, err := common.GetConfigMap(
+		caConfigMap, ctrlResult, err := common.GetConfigMap(
 			ctx,
 			r,
 			instance,
@@ -242,6 +243,9 @@ func (r *OpenStackConfigGeneratorReconciler) Reconcile(ctx context.Context, req 
 		)
 		if (err != nil) || (ctrlResult != ctrl.Result{}) {
 			return ctrlResult, err
+		}
+		for _, cacert := range caConfigMap.Data {
+			CABundle = append(CABundle, []byte(cacert)...)
 		}
 	}
 
@@ -606,7 +610,7 @@ func (r *OpenStackConfigGeneratorReconciler) Reconcile(ctx context.Context, req 
 	}
 
 	// update ConfigVersions with Git Commits
-	configVersions, gerr := openstackconfigversion.SyncGit(ctx, instance, r.Client, r.Log)
+	configVersions, gerr := openstackconfigversion.SyncGit(ctx, instance, CABundle, r.Client, r.Log)
 	if gerr != nil {
 		r.Log.Error(gerr, "ConfigVersions")
 		return ctrl.Result{}, gerr

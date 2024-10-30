@@ -26,6 +26,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 )
 
 // DeployJob -
@@ -109,7 +110,20 @@ func DeployJob(
 								LocalObjectReference: corev1.LocalObjectReference{
 									Name: gitSecret,
 								},
-								Key: "git_ssh_identity",
+								Key:      "git_ssh_identity",
+								Optional: ptr.To(true),
+							},
+						},
+					},
+					{
+						Name: "GIT_API_KEY",
+						ValueFrom: &corev1.EnvVarSource{
+							SecretKeyRef: &corev1.SecretKeySelector{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: gitSecret,
+								},
+								Key:      "git_api_key",
+								Optional: ptr.To(true),
 							},
 						},
 					},

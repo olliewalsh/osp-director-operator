@@ -20,6 +20,7 @@ import (
 	ospdirectorv1beta1 "github.com/openstack-k8s-operators/osp-director-operator/api/v1beta1"
 	controlplane "github.com/openstack-k8s-operators/osp-director-operator/pkg/controlplane"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/ptr"
 )
 
 // GetVolumeMounts -
@@ -59,9 +60,8 @@ func GetVolumeMounts(instance *ospdirectorv1beta1.OpenStackConfigGenerator, caCo
 			ReadOnly:  true,
 		},
 		{
-			Name:      "git-ssh-config",
-			MountPath: "/mnt/ssh-config/git_id_rsa",
-			SubPath:   "git_id_rsa",
+			Name:      "git-auth-config",
+			MountPath: "/mnt/git-auth-config",
 			ReadOnly:  true,
 		},
 	}
@@ -151,7 +151,7 @@ func GetVolumes(instance *ospdirectorv1beta1.OpenStackConfigGenerator, caConfigM
 			},
 		},
 		{
-			Name: "git-ssh-config", //ssh key for git repo access
+			Name: "git-auth-config", //ssh key or api key for git repo access
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					DefaultMode: &config0644AccessMode,
@@ -162,7 +162,13 @@ func GetVolumes(instance *ospdirectorv1beta1.OpenStackConfigGenerator, caConfigM
 							Path: "git_id_rsa",
 							Mode: &config0600AccessMode,
 						},
+						{
+							Key:  "git_api_key",
+							Path: "git_api_key",
+							Mode: &config0600AccessMode,
+						},
 					},
+					Optional: ptr.To(true),
 				},
 			},
 		},

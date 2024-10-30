@@ -44,6 +44,7 @@ var (
 		configVersion  string
 		gitURL         string
 		gitSSHIdentity string
+		gitApiKey      string
 		playbooks      string
 		limit          string
 		tags           string
@@ -75,6 +76,7 @@ func init() {
 	deployCmd.PersistentFlags().StringVar(&deployOpts.deployName, "deployName", "", "The name of the deployment being executed. Controls the name of the generated exports ConfigMap.")
 	deployCmd.PersistentFlags().StringVar(&deployOpts.gitURL, "gitURL", "", "Git URL to use when downloading playbooks.")
 	deployCmd.PersistentFlags().StringVar(&deployOpts.gitSSHIdentity, "gitSSHIdentity", "", "Git SSH Identity to use when downloading playbooks.")
+	deployCmd.PersistentFlags().StringVar(&deployOpts.gitApiKey, "gitApiKey", "", "Git API Key to use when downloading playbooks.")
 	deployCmd.PersistentFlags().StringVar(&deployOpts.playbooks, "playbooks", "", "Playbooks to deploy")
 	deployCmd.PersistentFlags().StringVar(&deployOpts.limit, "limit", "", "Playbook inventory limit")
 	deployCmd.PersistentFlags().StringVar(&deployOpts.tags, "tags", "", "Playbook include tags")
@@ -367,11 +369,13 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 	}
 
 	if deployOpts.gitSSHIdentity == "" {
-		gitSSHIdentity, ok := os.LookupEnv("GIT_ID_RSA")
-		if !ok || gitSSHIdentity == "" {
-			glog.Fatalf("gitSSHIdentity is required")
-		}
+		gitSSHIdentity, _ := os.LookupEnv("GIT_ID_RSA")
 		deployOpts.gitSSHIdentity = gitSSHIdentity
+	}
+
+	if deployOpts.gitApiKey == "" {
+		gitApiKey, _ := os.LookupEnv("GIT_API_KEY")
+		deployOpts.gitApiKey = gitApiKey
 	}
 
 	if deployOpts.playbooks == "" {
@@ -433,6 +437,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 				"openstackclient",
 				"CONFIG_VERSION='"+deployOpts.configVersion+"' "+
 					"GIT_ID_RSA='"+deployOpts.gitSSHIdentity+"' "+
+					"GIT_API_KEY='"+deployOpts.gitApiKey+"' "+
 					"GIT_URL='"+deployOpts.gitURL+"' "+
 					"PLAYBOOKS='"+deployOpts.playbooks+"' "+
 					"LIMIT='"+deployOpts.limit+"' "+
@@ -452,6 +457,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 		"openstackclient",
 		"CONFIG_VERSION='"+deployOpts.configVersion+"' "+
 			"GIT_ID_RSA='"+deployOpts.gitSSHIdentity+"' "+
+			"GIT_API_KEY='"+deployOpts.gitApiKey+"' "+
 			"GIT_URL='"+deployOpts.gitURL+"' "+
 			"PLAYBOOKS='"+deployOpts.playbooks+"' "+
 			"LIMIT='"+deployOpts.limit+"' "+

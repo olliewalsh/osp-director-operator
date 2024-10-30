@@ -33,6 +33,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/format/diff"
 	"github.com/go-git/go-git/v5/plumbing/protocol/packp/capability"
 	"github.com/go-git/go-git/v5/plumbing/transport"
+	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/go-git/go-git/v5/storage/memory"
 
@@ -116,6 +117,7 @@ func filterPatches(filePatches []diff.FilePatch) []diff.FilePatch {
 func SyncGit(
 	ctx context.Context,
 	inst *ospdirectorv1beta1.OpenStackConfigGenerator,
+	CABundle []byte,
 	client client.Client,
 	log logr.Logger,
 ) (map[string]ospdirectorv1beta1.OpenStackConfigVersion, error) {
@@ -135,6 +137,7 @@ func SyncGit(
 
 	log.Info("GitRepo foundSecret")
 	pkey := foundSecret.Data["git_ssh_identity"]
+	apikey := string(foundSecret.Data["git_api_key"])
 
 	gitURL := string(foundSecret.Data["git_url"])
 	gitEndpoint, err := transport.NewEndpoint(gitURL)
@@ -143,17 +146,26 @@ func SyncGit(
 		return nil, err
 	}
 
-	publicKeys, err := ssh.NewPublicKeys(gitEndpoint.User, pkey, "")
-	publicKeys.HostKeyCallback = crypto_ssh.InsecureIgnoreHostKey()
-	if err != nil {
-		log.Info(fmt.Sprintf("generate publickeys failed: %s\n", err.Error()))
-		return nil, err
+	gitCloneOptions := git.CloneOptions{
+		URL: gitURL,
 	}
+	if gitEndpoint.Protocol == "ssh" {
+		publicKeys, err := ssh.NewPublicKeys(gitEndpoint.User, pkey, "")
+		publicKeys.HostKeyCallback = crypto_ssh.InsecureIgnoreHostKey()
+		if err != nil {
+			log.Info(fmt.Sprintf("generate publickeys failed: %s\n", err.Error()))
+			return nil, err
+		}
+		gitCloneOptions.Auth = publicKeys
+	} else {
+		gitCloneOptions.Auth = &http.BasicAuth{
+			Username: "notused",
+			Password: apikey,
+		}
+	}
+	gitCloneOptions.CABundle = CABundle
 
-	repo, err := git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
-		URL:  gitURL,
-		Auth: publicKeys,
-	})
+	repo, err := git.Clone(memory.NewStorage(), nil, &gitCloneOptions)
 	// if Azure DevOps is used it can fail with as azure is not compatible to go-git, https://github.com/go-git/go-git/pull/613
 	// "2023-08-04T13:16:19.264Z        INFO    controllers.OpenStackConfigGenerator    Failed to create Git repo: empty git-upload-pack given"
 	// retry with workaround setting capability.ThinPack
@@ -164,10 +176,7 @@ func SyncGit(
 			capability.ThinPack,
 		}
 
-		repo, err = git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
-			URL:  gitURL,
-			Auth: publicKeys,
-		})
+		repo, err = git.Clone(memory.NewStorage(), nil, &gitCloneOptions)
 	}
 	// Failed to create Git repo: URL field is required
 	if err != nil {
@@ -182,7 +191,8 @@ func SyncGit(
 	})
 
 	refs, err := rem.List(&git.ListOptions{
-		Auth: publicKeys,
+		Auth:     gitCloneOptions.Auth,
+		CABundle: gitCloneOptions.CABundle,
 	})
 	if err != nil {
 		log.Info(fmt.Sprintf("Failed to list remote: %s\n", err.Error()))

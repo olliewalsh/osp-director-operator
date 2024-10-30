@@ -27,8 +27,24 @@ if [ ! -L /var/log/validations ]; then
 fi
 
 export GIT_SSH_COMMAND="ssh -i $WORKDIR/git_id_rsa -o StrictHostKeyChecking=no"
-echo $GIT_ID_RSA | sed -e 's|- |-\n|' | sed -e 's| -|\n-|'  > $WORKDIR/git_id_rsa
-chmod 600 $WORKDIR/git_id_rsa
+if [ -n "$GIT_ID_RSA" ]; then
+  echo $GIT_ID_RSA | sed -e 's|- |-\n|' | sed -e 's| -|\n-|'  > $WORKDIR/git_id_rsa
+  chmod 600 $WORKDIR/git_id_rsa
+fi
+
+# create helper script for git https apikey auth
+cat <<EOF > $HOME/git-askpass
+#!/bin/bash
+case "\$1" in
+    User*) echo notused ;;
+    Pass*) echo \$GIT_API_KEY;;
+esac
+EOF
+chmod 700 $HOME/git-askpass
+export GIT_ASKPASS=$HOME/git-askpass
+
+# confirm git auth works
+git ls-remote "$GIT_URL" > /dev/null || exit 1
 
 git config --global user.email "dev@null.io"
 git config --global user.name "OSP Director Operator"

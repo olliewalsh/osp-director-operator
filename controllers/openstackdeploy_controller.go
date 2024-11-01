@@ -163,6 +163,23 @@ func (r *OpenStackDeployReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, err
 	}
 
+	//
+	// Check git secret
+	//
+	gitScriptEnvVars, err := common.BuildGitScriptEnvVars(
+		ctx,
+		types.NamespacedName{Name: configGenerator.Spec.GitSecret, Namespace: instance.Namespace},
+		r.Client,
+		r.Log,
+	)
+	if err != nil {
+		cond.Message = err.Error()
+		cond.Reason = shared.CommonCondReasonSecretError
+		cond.Type = shared.DeployCondTypeError
+		err = common.WrapErrorForObject(cond.Message, instance, err)
+		return ctrl.Result{}, err
+	}
+
 	advancedSettings := instance.Spec.AdvancedSettings.DeepCopy()
 	if len(advancedSettings.Playbooks) == 0 {
 		switch instance.Spec.Mode {
@@ -192,9 +209,9 @@ func (r *OpenStackDeployReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 			instance,
 			"openstackclient",
 			instance.Spec.ConfigVersion,
-			configGenerator.Spec.GitSecret,
 			advancedSettings,
 			OSPVersion,
+			gitScriptEnvVars,
 		)
 
 		op, err := controllerutil.CreateOrPatch(ctx, r.Client, job, func() error {

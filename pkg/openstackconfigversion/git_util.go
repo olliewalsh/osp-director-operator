@@ -24,24 +24,18 @@ import (
 	"regexp"
 	"strings"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 
 	git "github.com/go-git/go-git/v5"
 	config "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing/format/diff"
 	"github.com/go-git/go-git/v5/plumbing/protocol/packp/capability"
 	"github.com/go-git/go-git/v5/plumbing/transport"
-	"github.com/go-git/go-git/v5/plumbing/transport/http"
-	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/go-git/go-git/v5/storage/memory"
-
-	crypto_ssh "golang.org/x/crypto/ssh"
 
 	"github.com/go-logr/logr"
 	ospdirectorv1beta1 "github.com/openstack-k8s-operators/osp-director-operator/api/v1beta1"
-	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
+	"github.com/openstack-k8s-operators/osp-director-operator/pkg/common"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -117,53 +111,18 @@ func filterPatches(filePatches []diff.FilePatch) []diff.FilePatch {
 func SyncGit(
 	ctx context.Context,
 	inst *ospdirectorv1beta1.OpenStackConfigGenerator,
-	CABundle []byte,
+	remoteOptions *common.GitRemoteOptions,
 	client client.Client,
 	log logr.Logger,
 ) (map[string]ospdirectorv1beta1.OpenStackConfigVersion, error) {
 
 	configVersions := make(map[string]ospdirectorv1beta1.OpenStackConfigVersion)
 
-	// Check if this Secret already exists
-	foundSecret := &corev1.Secret{}
-	err := client.Get(ctx, types.NamespacedName{Name: inst.Spec.GitSecret, Namespace: inst.Namespace}, foundSecret)
-	if err != nil {
-		if k8s_errors.IsNotFound(err) {
-			log.Error(err, "GitRepo secret was not found.")
-			return nil, err
-		}
-		return nil, err
-	}
-
-	log.Info("GitRepo foundSecret")
-	pkey := foundSecret.Data["git_ssh_identity"]
-	apikey := string(foundSecret.Data["git_api_key"])
-
-	gitURL := string(foundSecret.Data["git_url"])
-	gitEndpoint, err := transport.NewEndpoint(gitURL)
-	if err != nil {
-		log.Info(fmt.Sprintf("parse git url failed: %s\n", err.Error()))
-		return nil, err
-	}
-
 	gitCloneOptions := git.CloneOptions{
-		URL: gitURL,
+		URL:      remoteOptions.URL,
+		Auth:     remoteOptions.Auth,
+		CABundle: remoteOptions.CABundle,
 	}
-	if gitEndpoint.Protocol == "ssh" {
-		publicKeys, err := ssh.NewPublicKeys(gitEndpoint.User, pkey, "")
-		publicKeys.HostKeyCallback = crypto_ssh.InsecureIgnoreHostKey()
-		if err != nil {
-			log.Info(fmt.Sprintf("generate publickeys failed: %s\n", err.Error()))
-			return nil, err
-		}
-		gitCloneOptions.Auth = publicKeys
-	} else {
-		gitCloneOptions.Auth = &http.BasicAuth{
-			Username: "notused",
-			Password: apikey,
-		}
-	}
-	gitCloneOptions.CABundle = CABundle
 
 	repo, err := git.Clone(memory.NewStorage(), nil, &gitCloneOptions)
 	// if Azure DevOps is used it can fail with as azure is not compatible to go-git, https://github.com/go-git/go-git/pull/613
@@ -187,12 +146,12 @@ func SyncGit(
 	// Create the remote with repository URL
 	rem := git.NewRemote(memory.NewStorage(), &config.RemoteConfig{
 		Name: "origin",
-		URLs: []string{string(foundSecret.Data["git_url"])},
+		URLs: []string{remoteOptions.URL},
 	})
 
 	refs, err := rem.List(&git.ListOptions{
-		Auth:     gitCloneOptions.Auth,
-		CABundle: gitCloneOptions.CABundle,
+		Auth:     remoteOptions.Auth,
+		CABundle: remoteOptions.CABundle,
 	})
 	if err != nil {
 		log.Info(fmt.Sprintf("Failed to list remote: %s\n", err.Error()))

@@ -26,7 +26,6 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 )
 
 // DeployJob -
@@ -34,9 +33,9 @@ func DeployJob(
 	cr *ospdirectorv1beta1.OpenStackDeploy,
 	openstackClientPod string,
 	configVersion string,
-	gitSecret string,
 	advancedSettings *ospdirectorv1beta1.OpenStackDeployAdvancedSettingsSpec,
 	ospVersion shared.OSPVersion,
+	gitScriptEnvVars []corev1.EnvVar,
 ) *batchv1.Job {
 
 	runAsUser := int64(openstackclient.CloudAdminUID)
@@ -70,84 +69,52 @@ func DeployJob(
 				Image:           cr.Spec.ImageURL,
 				ImagePullPolicy: corev1.PullAlways,
 				Command:         cmd,
-				Env: []corev1.EnvVar{
-					// NOTE: CONFIG_VERSION must be the first ENV due to logic in openstackdeploy_controller
-					{
-						Name:  "CONFIG_VERSION",
-						Value: configVersion,
-					},
-					{
-						Name:  "DEPLOY_NAME",
-						Value: cr.Name,
-					},
-					{
-						Name:  "OSP_DIRECTOR_OPERATOR_NAMESPACE",
-						Value: cr.Namespace,
-					},
-					{
-						Name:  "OPENSTACKCLIENT_POD",
-						Value: openstackClientPod,
-					},
-					{
-						Name:  "OSP_VERSION",
-						Value: string(ospVersion),
-					},
-					{
-						Name: "GIT_URL",
-						ValueFrom: &corev1.EnvVarSource{
-							SecretKeyRef: &corev1.SecretKeySelector{
-								LocalObjectReference: corev1.LocalObjectReference{
-									Name: gitSecret,
-								},
-								Key: "git_url",
-							},
+				Env: append(
+					[]corev1.EnvVar{
+						// NOTE: CONFIG_VERSION must be the first ENV due to logic in openstackdeploy_controller
+						{
+							Name:  "CONFIG_VERSION",
+							Value: configVersion,
+						},
+						{
+							Name:  "DEPLOY_NAME",
+							Value: cr.Name,
+						},
+						{
+							Name:  "OSP_DIRECTOR_OPERATOR_NAMESPACE",
+							Value: cr.Namespace,
+						},
+						{
+							Name:  "OPENSTACKCLIENT_POD",
+							Value: openstackClientPod,
+						},
+						{
+							Name:  "OSP_VERSION",
+							Value: string(ospVersion),
+						},
+						{
+							Name:  "PLAYBOOKS",
+							Value: strings.Join(advancedSettings.Playbooks, ":"),
+						},
+						{
+							Name:  "LIMIT",
+							Value: advancedSettings.Limit,
+						},
+						{
+							Name:  "TAGS",
+							Value: strings.Join(advancedSettings.Tags, ","),
+						},
+						{
+							Name:  "SKIP_TAGS",
+							Value: strings.Join(advancedSettings.SkipTags, ","),
+						},
+						{
+							Name:  "SKIP_DEPLOY_IDENTIFIER",
+							Value: strconv.FormatBool(advancedSettings.SkipDeployIdentifier),
 						},
 					},
-					{
-						Name: "GIT_ID_RSA",
-						ValueFrom: &corev1.EnvVarSource{
-							SecretKeyRef: &corev1.SecretKeySelector{
-								LocalObjectReference: corev1.LocalObjectReference{
-									Name: gitSecret,
-								},
-								Key:      "git_ssh_identity",
-								Optional: ptr.To(true),
-							},
-						},
-					},
-					{
-						Name: "GIT_API_KEY",
-						ValueFrom: &corev1.EnvVarSource{
-							SecretKeyRef: &corev1.SecretKeySelector{
-								LocalObjectReference: corev1.LocalObjectReference{
-									Name: gitSecret,
-								},
-								Key:      "git_api_key",
-								Optional: ptr.To(true),
-							},
-						},
-					},
-					{
-						Name:  "PLAYBOOKS",
-						Value: strings.Join(advancedSettings.Playbooks, ":"),
-					},
-					{
-						Name:  "LIMIT",
-						Value: advancedSettings.Limit,
-					},
-					{
-						Name:  "TAGS",
-						Value: strings.Join(advancedSettings.Tags, ","),
-					},
-					{
-						Name:  "SKIP_TAGS",
-						Value: strings.Join(advancedSettings.SkipTags, ","),
-					},
-					{
-						Name:  "SKIP_DEPLOY_IDENTIFIER",
-						Value: strconv.FormatBool(advancedSettings.SkipDeployIdentifier),
-					},
-				},
+					gitScriptEnvVars...,
+				),
 			},
 		},
 	}

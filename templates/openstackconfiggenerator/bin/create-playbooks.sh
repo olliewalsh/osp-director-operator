@@ -11,29 +11,26 @@ if [ -d /mnt/ca-certs ]; then
   sudo update-ca-trust
 fi
 
-# add git ssh keys to $HOME/.ssh
 export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/git_id_rsa -o StrictHostKeyChecking=no"
-if [ -e /mnt/git-auth-config/git_id_rsa ]; then
-    mkdir -p $HOME/.ssh
-    sudo cp /mnt/git-auth-config/git_id_rsa $HOME/.ssh/
-    sudo chmod 600 $HOME/.ssh/git_id_rsa
-    sudo chown -R $CHOWN_UID:$CHOWN_GID $HOME/.ssh
+if [ -n "${GIT_ID_RSA:-}" ]; then
+  mkdir -p $HOME/.ssh
+  echo $GIT_ID_RSA | sed -e 's|- |-\n|' | sed -e 's| -|\n-|'  > $HOME/.ssh/git_id_rsa
+  chmod 600 $HOME/.ssh/git_id_rsa
 fi
 
 # create helper script for git https apikey auth
-export GIT_API_KEY=$(sudo cat /mnt/git-auth-config/git_api_key)
 cat <<EOF > $HOME/git-askpass
 #!/bin/bash
 case "\$1" in
     User*) echo notused ;;
-    Pass*) echo \$GIT_API_KEY;;
+    Pass*) echo \$GIT_API_KEY ;;
 esac
 EOF
 chmod 700 $HOME/git-askpass
 export GIT_ASKPASS=$HOME/git-askpass
 
 # confirm git auth works
-git ls-remote "$GIT_URL" > /dev/null
+git ls-remote "$GIT_URL" > /dev/null || exit 1
 
 unset OS_CLOUD
 export OS_AUTH_TYPE=none

@@ -26,7 +26,7 @@ import (
 )
 
 // ConfigJob -
-func ConfigJob(cr *ospdirectorv1beta1.OpenStackConfigGenerator, configHash string, ospVersion shared.OSPVersion, caConfigMap string) *batchv1.Job {
+func ConfigJob(cr *ospdirectorv1beta1.OpenStackConfigGenerator, configHash string, ospVersion shared.OSPVersion, caConfigMap string, gitScriptEnvVars []corev1.EnvVar) *batchv1.Job {
 
 	runAsUser := int64(openstackclient.CloudAdminUID)
 	runAsGroup := int64(openstackclient.CloudAdminGID)
@@ -67,27 +67,19 @@ func ConfigJob(cr *ospdirectorv1beta1.OpenStackConfigGenerator, configHash strin
 				Image:           cr.Spec.ImageURL,
 				ImagePullPolicy: corev1.PullAlways,
 				Command:         cmd,
-				Env: []corev1.EnvVar{
-					{
-						Name:  "ConfigHash",
-						Value: configHash,
-					},
-					{
-						Name: "GIT_URL",
-						ValueFrom: &corev1.EnvVarSource{
-							SecretKeyRef: &corev1.SecretKeySelector{
-								LocalObjectReference: corev1.LocalObjectReference{
-									Name: cr.Spec.GitSecret,
-								},
-								Key: "git_url",
-							},
+				Env: append(
+					[]corev1.EnvVar{
+						{
+							Name:  "ConfigHash",
+							Value: configHash,
+						},
+						{
+							Name:  "OSPVersion",
+							Value: string(ospVersion),
 						},
 					},
-					{
-						Name:  "OSPVersion",
-						Value: string(ospVersion),
-					},
-				},
+					gitScriptEnvVars...,
+				),
 				VolumeMounts: volumeMounts,
 			},
 		},

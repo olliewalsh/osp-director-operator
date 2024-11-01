@@ -20,7 +20,6 @@ import (
 	ospdirectorv1beta1 "github.com/openstack-k8s-operators/osp-director-operator/api/v1beta1"
 	controlplane "github.com/openstack-k8s-operators/osp-director-operator/pkg/controlplane"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/utils/ptr"
 )
 
 // GetVolumeMounts -
@@ -59,11 +58,6 @@ func GetVolumeMounts(instance *ospdirectorv1beta1.OpenStackConfigGenerator, caCo
 			SubPath:   "process-roles.py",
 			ReadOnly:  true,
 		},
-		{
-			Name:      "git-auth-config",
-			MountPath: "/mnt/git-auth-config",
-			ReadOnly:  true,
-		},
 	}
 
 	if instance.Spec.TarballConfigMap != "" {
@@ -89,7 +83,6 @@ func GetVolumeMounts(instance *ospdirectorv1beta1.OpenStackConfigGenerator, caCo
 
 // GetVolumes -
 func GetVolumes(instance *ospdirectorv1beta1.OpenStackConfigGenerator, caConfigMap string) []corev1.Volume {
-	var config0600AccessMode int32 = 0600
 	var config0644AccessMode int32 = 0644
 	var config0755AccessMode int32 = 0755
 
@@ -147,28 +140,6 @@ func GetVolumes(instance *ospdirectorv1beta1.OpenStackConfigGenerator, caConfigM
 							Path: "process-roles.py",
 						},
 					},
-				},
-			},
-		},
-		{
-			Name: "git-auth-config", //ssh key or api key for git repo access
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					DefaultMode: &config0644AccessMode,
-					SecretName:  instance.Spec.GitSecret,
-					Items: []corev1.KeyToPath{
-						{
-							Key:  "git_ssh_identity",
-							Path: "git_id_rsa",
-							Mode: &config0600AccessMode,
-						},
-						{
-							Key:  "git_api_key",
-							Path: "git_api_key",
-							Mode: &config0600AccessMode,
-						},
-					},
-					Optional: ptr.To(true),
 				},
 			},
 		},

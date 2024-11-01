@@ -412,6 +412,37 @@ func (r *OpenStackConfigGeneratorReconciler) Reconcile(ctx context.Context, req 
 	}
 
 	//
+	// Check git secret
+	//
+	gitScriptEnvVars, err := common.BuildGitScriptEnvVars(
+		ctx,
+		types.NamespacedName{Name: instance.Spec.GitSecret, Namespace: instance.Namespace},
+		r.Client,
+		r.Log,
+	)
+	if err != nil {
+		cond.Message = err.Error()
+		cond.Reason = shared.CommonCondReasonSecretError
+		cond.Type = shared.ConfigGeneratorCondTypeError
+		err = common.WrapErrorForObject(cond.Message, instance, err)
+		return ctrl.Result{}, err
+	}
+	gitRemoteOptions, err := common.BuildGitOptions(
+		ctx,
+		types.NamespacedName{Name: instance.Spec.GitSecret, Namespace: instance.Namespace},
+		CABundle,
+		r.Client,
+		r.Log,
+	)
+	if err != nil {
+		cond.Message = err.Error()
+		cond.Reason = shared.CommonCondReasonSecretError
+		cond.Type = shared.ConfigGeneratorCondTypeError
+		err = common.WrapErrorForObject(cond.Message, instance, err)
+		return ctrl.Result{}, err
+	}
+
+	//
 	// Create ephemeral heat
 	//
 	heat := &ospdirectorv1beta1.OpenStackEphemeralHeat{
@@ -430,7 +461,7 @@ func (r *OpenStackConfigGeneratorReconciler) Reconcile(ctx context.Context, req 
 	}
 
 	// Define a new Job object
-	job := openstackconfiggenerator.ConfigJob(instance, configMapHash, OSPVersion, controlPlane.Spec.CAConfigMap)
+	job := openstackconfiggenerator.ConfigJob(instance, configMapHash, OSPVersion, controlPlane.Spec.CAConfigMap, gitScriptEnvVars)
 
 	var exports string
 	if instance.Status.ConfigHash != configMapHash {
@@ -610,7 +641,7 @@ func (r *OpenStackConfigGeneratorReconciler) Reconcile(ctx context.Context, req 
 	}
 
 	// update ConfigVersions with Git Commits
-	configVersions, gerr := openstackconfigversion.SyncGit(ctx, instance, CABundle, r.Client, r.Log)
+	configVersions, gerr := openstackconfigversion.SyncGit(ctx, instance, gitRemoteOptions, r.Client, r.Log)
 	if gerr != nil {
 		r.Log.Error(gerr, "ConfigVersions")
 		return ctrl.Result{}, gerr

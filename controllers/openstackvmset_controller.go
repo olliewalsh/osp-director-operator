@@ -783,7 +783,7 @@ func (r *OpenStackVMSetReconciler) vmCreateInstance(
 	osNetBindings map[string]ospdirectorv1beta1.AttachType,
 ) error {
 
-	evictionStrategy := virtv1.EvictionStrategyLiveMigrate
+	evictionStrategy := virtv1.EvictionStrategyNone
 	trueValue := true
 	terminationGracePeriodSeconds := int64(0)
 

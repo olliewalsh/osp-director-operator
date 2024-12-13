@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/diff"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -783,7 +784,6 @@ func (r *OpenStackVMSetReconciler) vmCreateInstance(
 	osNetBindings map[string]ospdirectorv1beta1.AttachType,
 ) error {
 
-	evictionStrategy := virtv1.EvictionStrategyNone
 	trueValue := true
 	terminationGracePeriodSeconds := int64(0)
 
@@ -829,7 +829,7 @@ func (r *OpenStackVMSetReconciler) vmCreateInstance(
 				},
 				Spec: virtv1.VirtualMachineInstanceSpec{
 					Hostname:                      ctl.DomainName,
-					EvictionStrategy:              &evictionStrategy,
+					EvictionStrategy:              ptr.To(virtv1.EvictionStrategyLiveMigrate),
 					TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 					Domain: virtv1.DomainSpec{
 						Devices: virtv1.Devices{
@@ -1021,6 +1021,10 @@ func (r *OpenStackVMSetReconciler) vmCreateInstance(
 			instance.Namespace,
 		)
 
+		if instance.Spec.RootDisk.StorageAccessMode == "ReadWriteOnce" {
+			vm.Spec.Template.Spec.EvictionStrategy = ptr.To(virtv1.EvictionStrategyNone)
+		}
+
 		bootDevice := uint(1)
 		vm.Spec.Template.Spec.Domain.Devices.Disks = vmset.MergeVMDisks(
 			vm.Spec.Template.Spec.Domain.Devices.Disks,
@@ -1110,6 +1114,10 @@ func (r *OpenStackVMSetReconciler) vmCreateInstance(
 					),
 				},
 			)
+
+			if disk.StorageAccessMode == "ReadWriteOnce" {
+				vm.Spec.Template.Spec.EvictionStrategy = ptr.To(virtv1.EvictionStrategyNone)
+			}
 		}
 
 		err := controllerutil.SetControllerReference(instance, vm, r.Scheme)

@@ -14,6 +14,7 @@ parameter_defaults:
           ssl_insecure: true
           power_timeout: 30
           kubeconfig: /root/kubeconfig/kubeconfig
+          pcmk_reboot_action: "off"
 {{- end }}
 parameter_merge_strategies:
   FencingConfig: deep_merge

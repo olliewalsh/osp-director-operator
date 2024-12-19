@@ -791,6 +791,33 @@ func (r *OpenStackBaremetalSetReconciler) ensureBaremetalHosts(
 	sort.Slice(availableBaremetalHosts[:], func(i, j int) bool {
 		return availableBaremetalHosts[i].Name < availableBaremetalHosts[j].Name
 	})
+	// Sort again by OSPHostnameLabelSelector, if set and host index within range, so that these hosts are consumed first
+	parseHostname := func(hostname string) (string, int, error) {
+		parts := strings.Split(hostname, "-")
+		if len(parts) < 2 {
+			return "", 0, fmt.Errorf("bad hostname")
+		}
+		rolename := strings.Join(parts[:len(parts)-1], "-")
+		index, err := strconv.Atoi(parts[len(parts)-1])
+		return rolename, index, err
+	}
+	sort.SliceStable(availableBaremetalHosts[:], func(i, j int) bool {
+		labelA := availableBaremetalHosts[i].Labels[common.OSPHostnameLabelSelector]
+		labelB := availableBaremetalHosts[j].Labels[common.OSPHostnameLabelSelector]
+		indexA := instance.Spec.Count
+		indexB := instance.Spec.Count
+		if labelA != "" {
+			if rolename, index, err := parseHostname(labelA); err == nil && rolename == instance.Spec.RoleName && index >= len(existingBaremetalHosts.Items) && index < instance.Spec.Count {
+				indexA = index
+			}
+		}
+		if labelB != "" {
+			if rolename, index, err := parseHostname(labelB); err == nil && rolename == instance.Spec.RoleName && index >= len(existingBaremetalHosts.Items) && index < instance.Spec.Count {
+				indexB = index
+			}
+		}
+		return indexA < indexB
+	})
 
 	// For each available BaremetalHost that we need to allocate, we update the
 	// reference to use our image and set the user data to use our cloud-init secret.
@@ -872,32 +899,47 @@ func (r *OpenStackBaremetalSetReconciler) baremetalHostProvision(
 	//  if bmhStatus is not found, get free hostname from instance.Status.baremetalHosts (HostRef == ospdirectorv1beta1.HostRefInitState ("unassigned")) for the new bmh
 	//
 	if err != nil && k8s_errors.IsNotFound(err) {
-		for _, bmhStatus = range instance.Status.BaremetalHosts {
-			if bmhStatus.HostRef == shared.HostRefInitState {
-
-				bmhStatus.HostRef = bmh.Name
-				instance.Status.BaremetalHosts[bmhStatus.Hostname] = bmhStatus
-
-				// update status with host assignment
-				if err := r.Status().Update(context.Background(), instance); err != nil {
-					cond.Message = fmt.Sprintf("Failed to update CR status %v", err)
-					cond.Reason = shared.CommonCondReasonCRStatusUpdateError
-					cond.Type = shared.CommonCondTypeError
-
-					err = common.WrapErrorForObject(cond.Message, instance, err)
-
-					return err
+		desiredHostname := bmh.Labels[common.OSPHostnameLabelSelector]
+		logMsg := fmt.Sprintf("Assigning baremetalhost %s", bmh.Name)
+		if desiredHostname != "" {
+			logMsg += fmt.Sprintf(" with desired hostname: %s", desiredHostname)
+		}
+		common.LogForObject(r, logMsg, instance)
+		var bmhStatus *ospdirectorv1beta1.HostStatus
+		for _, checkBmhStatus := range instance.Status.BaremetalHosts {
+			if checkBmhStatus.HostRef == shared.HostRefInitState {
+				bmhStatus = &checkBmhStatus
+				if desiredHostname != "" && checkBmhStatus.Hostname != desiredHostname {
+					continue
 				}
-
-				common.LogForObject(
-					r,
-					fmt.Sprintf("Assigned %s to baremetalhost %s", bmhStatus.Hostname, bmh.Name),
-					instance,
-				)
-
 				break
 			}
 		}
+
+		if bmhStatus == nil {
+			// Should never happen....
+			return fmt.Errorf("no available bmhStatus found for baremetalhost %s", bmh.Name)
+		}
+
+		bmhStatus.HostRef = bmh.Name
+		instance.Status.BaremetalHosts[bmhStatus.Hostname] = *bmhStatus
+
+		// update status with host assignment
+		if err := r.Status().Update(context.Background(), instance); err != nil {
+			cond.Message = fmt.Sprintf("Failed to update CR status %v", err)
+			cond.Reason = shared.CommonCondReasonCRStatusUpdateError
+			cond.Type = shared.CommonCondTypeError
+
+			err = common.WrapErrorForObject(cond.Message, instance, err)
+
+			return err
+		}
+
+		common.LogForObject(
+			r,
+			fmt.Sprintf("Assigned %s to baremetalhost %s", bmhStatus.Hostname, bmh.Name),
+			instance,
+		)
 	}
 
 	// Handle cloud-init concerns

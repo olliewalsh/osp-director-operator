@@ -37,6 +37,7 @@ func LogForObject(r ReconcilerCommon,
 	params = append(params, logObjectParams(object)...)
 
 	r.GetLogger().Info(msg, params...)
+	r.GetLogger().Info("\n")
 }
 
 // WrapErrorForObject -

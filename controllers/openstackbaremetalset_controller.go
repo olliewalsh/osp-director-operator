@@ -904,7 +904,7 @@ func (r *OpenStackBaremetalSetReconciler) baremetalHostProvision(
 		if desiredHostname != "" {
 			logMsg += fmt.Sprintf(" with desired hostname: %s", desiredHostname)
 		}
-		common.LogForObject(r, logMsg, instance)
+		r.GetLogger().Info(logMsg + "\n")
 		var bmhStatus *ospdirectorv1beta1.HostStatus
 		for _, checkBmhStatus := range instance.Status.BaremetalHosts {
 			if checkBmhStatus.HostRef == shared.HostRefInitState {
@@ -935,11 +935,7 @@ func (r *OpenStackBaremetalSetReconciler) baremetalHostProvision(
 			return err
 		}
 
-		common.LogForObject(
-			r,
-			fmt.Sprintf("Assigned %s to baremetalhost %s", bmhStatus.Hostname, bmh.Name),
-			instance,
-		)
+		r.GetLogger().Info(fmt.Sprintf("Assigned %s to baremetalhost %s\n", bmhStatus.Hostname, bmh.Name))
 	}
 
 	// Handle cloud-init concerns

@@ -33,6 +33,9 @@ const (
 	// OSPHostnameLabelSelector - Tripleo Hostname
 	OSPHostnameLabelSelector = GroupLabel + "/osphostname"
 
+	// HostnameLabelSelector - Hostname Override
+	HostnameLabelSelector = GroupLabel + "/hostname"
+
 	// MustGatherSecret - Label placed on secrets that are safe to collect with must-gater
 	MustGatherSecret = GroupLabel + "/must-gather-secret"
 

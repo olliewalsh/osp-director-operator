@@ -696,7 +696,7 @@ func (r *OpenStackBaremetalSetReconciler) doBMHDelete(
 
 			if len(removalAnnotatedBaremetalHosts) > 0 {
 				// get OSBms status corresponding to bmh
-				bmhStatus, err := r.getBmhHostRefStatus(instance, cond, removalAnnotatedBaremetalHosts[0])
+				tripleoHostName, bmhStatus, err := r.getBmhHostRefStatus(instance, cond, removalAnnotatedBaremetalHosts[0])
 				if err != nil && k8s_errors.IsNotFound(err) {
 					return deletedHosts, err
 				}
@@ -705,6 +705,7 @@ func (r *OpenStackBaremetalSetReconciler) doBMHDelete(
 					ctx,
 					instance,
 					cond,
+					tripleoHostName,
 					bmhStatus,
 				)
 				if err != nil {
@@ -733,6 +734,16 @@ func (r *OpenStackBaremetalSetReconciler) doBMHDelete(
 	sort.Strings(deletedHosts)
 
 	return deletedHosts, nil
+}
+
+func parseHostname(hostname string) (string, int, error) {
+	parts := strings.Split(hostname, "-")
+	if len(parts) < 2 {
+		return "", 0, fmt.Errorf("bad hostname")
+	}
+	rolename := strings.Join(parts[:len(parts)-1], "-")
+	index, err := strconv.Atoi(parts[len(parts)-1])
+	return rolename, index, err
 }
 
 // Provision BaremetalHost resources based on replica count
@@ -791,16 +802,6 @@ func (r *OpenStackBaremetalSetReconciler) ensureBaremetalHosts(
 	sort.Slice(availableBaremetalHosts[:], func(i, j int) bool {
 		return availableBaremetalHosts[i].Name < availableBaremetalHosts[j].Name
 	})
-	// Sort again by OSPHostnameLabelSelector, if set and host index within range, so that these hosts are consumed first
-	parseHostname := func(hostname string) (string, int, error) {
-		parts := strings.Split(hostname, "-")
-		if len(parts) < 2 {
-			return "", 0, fmt.Errorf("bad hostname")
-		}
-		rolename := strings.Join(parts[:len(parts)-1], "-")
-		index, err := strconv.Atoi(parts[len(parts)-1])
-		return rolename, index, err
-	}
 	sort.SliceStable(availableBaremetalHosts[:], func(i, j int) bool {
 		labelA := availableBaremetalHosts[i].Labels[common.OSPHostnameLabelSelector]
 		labelB := availableBaremetalHosts[j].Labels[common.OSPHostnameLabelSelector]
@@ -865,11 +866,11 @@ func (r *OpenStackBaremetalSetReconciler) getBmhHostRefStatus(
 	instance *ospdirectorv1beta1.OpenStackBaremetalSet,
 	cond *shared.Condition,
 	bmh string,
-) (ospdirectorv1beta1.HostStatus, error) {
+) (string, ospdirectorv1beta1.HostStatus, error) {
 
-	for _, bmhStatus := range instance.Status.DeepCopy().BaremetalHosts {
+	for tripleoHostName, bmhStatus := range instance.Status.DeepCopy().BaremetalHosts {
 		if bmhStatus.HostRef == bmh {
-			return bmhStatus, nil
+			return tripleoHostName, bmhStatus, nil
 		}
 	}
 
@@ -877,7 +878,7 @@ func (r *OpenStackBaremetalSetReconciler) getBmhHostRefStatus(
 	cond.Reason = shared.BaremetalSetCondReasonBaremetalHostStatusNotFound
 	cond.Type = shared.BaremetalSetCondTypeError
 
-	return ospdirectorv1beta1.HostStatus{}, k8s_errors.NewNotFound(corev1.Resource("OpenStackBaremetalHostStatus"), "not found")
+	return "", ospdirectorv1beta1.HostStatus{}, k8s_errors.NewNotFound(corev1.Resource("OpenStackBaremetalHostStatus"), "not found")
 }
 
 // Provision a BaremetalHost via Metal3 (and potentially create its bootstrapping secrets)
@@ -894,7 +895,7 @@ func (r *OpenStackBaremetalSetReconciler) baremetalHostProvision(
 	//
 	//  get already registerd OSBms bmh status for bmh name
 	//
-	bmhStatus, err := r.getBmhHostRefStatus(instance, cond, bmh.Name)
+	tripleoHostName, bmhStatus, err := r.getBmhHostRefStatus(instance, cond, bmh.Name)
 	//
 	//  if bmhStatus is not found, get free hostname from instance.Status.baremetalHosts (HostRef == ospdirectorv1beta1.HostRefInitState ("unassigned")) for the new bmh
 	//
@@ -905,24 +906,22 @@ func (r *OpenStackBaremetalSetReconciler) baremetalHostProvision(
 			logMsg += fmt.Sprintf(" with desired hostname: %s", desiredHostname)
 		}
 		r.GetLogger().Info(logMsg + "\n")
-		var bmhStatus *ospdirectorv1beta1.HostStatus
-		for _, checkBmhStatus := range instance.Status.BaremetalHosts {
-			if checkBmhStatus.HostRef == shared.HostRefInitState {
-				bmhStatus = &checkBmhStatus
-				if desiredHostname != "" && checkBmhStatus.Hostname != desiredHostname {
+		for _, bmhStatus := range instance.Status.BaremetalHosts {
+			if bmhStatus.HostRef == shared.HostRefInitState {
+				if desiredHostname != "" && bmhStatus.Hostname != desiredHostname {
 					continue
 				}
 				break
 			}
 		}
 
-		if bmhStatus == nil {
-			// Should never happen....
-			return fmt.Errorf("no available bmhStatus found for baremetalhost %s", bmh.Name)
-		}
-
 		bmhStatus.HostRef = bmh.Name
-		instance.Status.BaremetalHosts[bmhStatus.Hostname] = *bmhStatus
+		tripleoHostName = bmhStatus.Hostname
+		hostnameOverride := bmh.Labels[common.HostnameLabelSelector]
+		if hostnameOverride != "" {
+			bmhStatus.Hostname = hostnameOverride
+		}
+		instance.Status.BaremetalHosts[tripleoHostName] = bmhStatus
 
 		// update status with host assignment
 		if err := r.Status().Update(context.Background(), instance); err != nil {
@@ -935,7 +934,7 @@ func (r *OpenStackBaremetalSetReconciler) baremetalHostProvision(
 			return err
 		}
 
-		r.GetLogger().Info(fmt.Sprintf("Assigned %s to baremetalhost %s\n", bmhStatus.Hostname, bmh.Name))
+		r.GetLogger().Info(fmt.Sprintf("Assigned %s to baremetalhost %s\n", tripleoHostName, bmh.Name))
 	}
 
 	// Handle cloud-init concerns
@@ -958,6 +957,7 @@ func (r *OpenStackBaremetalSetReconciler) baremetalHostProvision(
 		cond,
 		osNetCfg,
 		bmh,
+		tripleoHostName,
 		sshSecret,
 		bmhStatus.Hostname,
 		passwordSecret,
@@ -976,7 +976,7 @@ func (r *OpenStackBaremetalSetReconciler) baremetalHostProvision(
 		// Set our ownership labels so we can watch this resource
 		// Set ownership labels that can be found by the respective controller kind
 		labelSelector := common.GetLabels(instance, baremetalset.AppLabel, map[string]string{
-			common.OSPHostnameLabelSelector: bmhStatus.Hostname,
+			common.OSPHostnameLabelSelector: tripleoHostName,
 		})
 		bmh.Labels = shared.MergeStringMaps(
 			bmh.GetLabels(),
@@ -1030,16 +1030,16 @@ func (r *OpenStackBaremetalSetReconciler) baremetalHostProvision(
 	bmhStatus.NetworkDataSecretName = networkDataSecretRef.Name
 	bmhStatus.ProvisioningState = shared.ProvisioningState(bmh.Status.Provisioning.State)
 
-	actualBMHStatus := instance.Status.BaremetalHosts[bmhStatus.Hostname]
+	actualBMHStatus := instance.Status.BaremetalHosts[tripleoHostName]
 	if !reflect.DeepEqual(actualBMHStatus, bmhStatus) {
 		common.LogForObject(
 			r,
 			fmt.Sprintf("Updating CR status BMH %s provisioning details - diff %s",
-				bmhStatus.Hostname,
+				tripleoHostName,
 				diff.ObjectReflectDiff(actualBMHStatus, bmhStatus)),
 			instance)
 
-		instance.Status.BaremetalHosts[bmhStatus.Hostname] = bmhStatus
+		instance.Status.BaremetalHosts[tripleoHostName] = bmhStatus
 	}
 
 	return nil
@@ -1056,6 +1056,7 @@ func (r *OpenStackBaremetalSetReconciler) cloudInitProvision(ctx context.Context
 	cond *shared.Condition,
 	osNetCfg *ospdirectorv1beta1.OpenStackNetConfig,
 	bmh *metal3v1.BareMetalHost,
+	tripleoHostName string,
 	sshSecret string,
 	hostName string,
 	passwordSecret *corev1.Secret) (*corev1.SecretReference, *corev1.SecretReference, error) {
@@ -1253,7 +1254,7 @@ func (r *OpenStackBaremetalSetReconciler) cloudInitProvision(ctx context.Context
 			return nil, nil, err
 		}
 
-		ipCidr := instance.Status.BaremetalHosts[hostName].IPAddresses[netNameLower]
+		ipCidr := instance.Status.BaremetalHosts[tripleoHostName].IPAddresses[netNameLower]
 		ip, network, err := net.ParseCIDR(ipCidr)
 		if err != nil {
 			cond.Message = fmt.Sprintf("Error parsing IP CIDR %v for network %v", ipCidr, netNameLower)
@@ -1343,6 +1344,7 @@ func (r *OpenStackBaremetalSetReconciler) baremetalHostDeprovision(
 	ctx context.Context,
 	instance *ospdirectorv1beta1.OpenStackBaremetalSet,
 	cond *shared.Condition,
+	tripleoHostName string,
 	bmh ospdirectorv1beta1.HostStatus,
 ) (string, error) {
 	baremetalHost := &metal3v1.BareMetalHost{}
@@ -1415,7 +1417,7 @@ func (r *OpenStackBaremetalSetReconciler) baremetalHostDeprovision(
 	r.Log.Info(fmt.Sprintf("BaremetalHost deleted: bmh %s - osp name %s", baremetalHost.Name, ospHostname))
 
 	// Set status (remove this BaremetalHost entry)
-	delete(instance.Status.BaremetalHosts, bmh.Hostname)
+	delete(instance.Status.BaremetalHosts, tripleoHostName)
 
 	return ospHostname, nil
 }
@@ -1553,8 +1555,8 @@ func (r *OpenStackBaremetalSetReconciler) baremetalHostCleanup(
 	cond *shared.Condition,
 ) error {
 	if instance.Status.BaremetalHosts != nil {
-		for _, bmh := range instance.Status.BaremetalHosts {
-			_, err := r.baremetalHostDeprovision(ctx, instance, cond, bmh)
+		for tripleoHostName, bmh := range instance.Status.BaremetalHosts {
+			_, err := r.baremetalHostDeprovision(ctx, instance, cond, tripleoHostName, bmh)
 
 			if err != nil {
 				return err

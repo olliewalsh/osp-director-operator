@@ -925,7 +925,7 @@ func (r *OpenStackBaremetalSetReconciler) baremetalHostProvision(
 		instance.Status.BaremetalHosts[tripleoHostName] = bmhStatus
 
 		// update status with host assignment
-		if err := r.Status().Update(ctx, instance); err != nil {
+		if err := r.Status().Update(context.Background(), instance); err != nil {
 			cond.Message = fmt.Sprintf("Failed to update CR status %v", err)
 			cond.Reason = shared.CommonCondReasonCRStatusUpdateError
 			cond.Type = shared.CommonCondTypeError

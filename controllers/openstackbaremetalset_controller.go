@@ -906,9 +906,10 @@ func (r *OpenStackBaremetalSetReconciler) baremetalHostProvision(
 			logMsg += fmt.Sprintf(" with desired hostname: %s", desiredHostname)
 		}
 		r.GetLogger().Info(logMsg + "\n")
-		for _, bmhStatus := range instance.Status.BaremetalHosts {
-			if bmhStatus.HostRef == shared.HostRefInitState {
-				if desiredHostname != "" && bmhStatus.Hostname != desiredHostname {
+		for _, checkBmhStatus := range instance.Status.BaremetalHosts {
+			bmhStatus = checkBmhStatus
+			if checkBmhStatus.HostRef == shared.HostRefInitState {
+				if desiredHostname != "" && checkBmhStatus.Hostname != desiredHostname {
 					continue
 				}
 				break

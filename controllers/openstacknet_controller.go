@@ -222,10 +222,10 @@ func (r *OpenStackNetReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	//
 	reservedIPCount := 0
 	reservations := map[string]ospdirectorv1beta1.NodeIPReservation{}
-	for _, roleReservation := range instance.Spec.RoleReservations {
+	for hostname, roleReservation := range instance.Spec.RoleReservations {
 		for _, reservation := range roleReservation.Reservations {
 			reservedIPCount++
-			reservations[reservation.Hostname] = ospdirectorv1beta1.NodeIPReservation{
+			reservations[hostname] = ospdirectorv1beta1.NodeIPReservation{
 				IP:      reservation.IP,
 				Deleted: reservation.Deleted,
 			}

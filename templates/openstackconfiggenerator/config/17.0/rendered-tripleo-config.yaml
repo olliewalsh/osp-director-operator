@@ -31,7 +31,7 @@ parameter_defaults:
 {{- range $roleid, $role := .RolesMap }}
 {{- if not $role.IsControlPlane }}
 {{- range $nodeid, $node := $role.Nodes }}
-    {{ $role.NameLower }}-{{ $node.Index }}: {{ $node.Hostname }}
+    {{ $role.NameLower }}-{{ $node.Index }}: {{ $node.HostnameOverride }}
 {{- end }}
 {{- end }}
 {{- end }}

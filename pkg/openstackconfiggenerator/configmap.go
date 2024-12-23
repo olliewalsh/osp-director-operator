@@ -75,6 +75,7 @@ type roleNodeType struct {
 	Index                   int
 	IPaddr                  map[string]*roleIPType
 	Hostname                string
+	HostnameOverride        string
 	VIP                     bool
 	ServiceVIP              bool
 	OVNStaticBridgeMappings map[string]string
@@ -569,7 +570,8 @@ func createRolesMap(
 							hostRole.Nodes[reservation.Hostname] = &roleNodeType{
 								Index:                   *hostnameMapIndex,
 								IPaddr:                  map[string]*roleIPType{},
-								Hostname:                roleHostMap[roleName][reservation.Hostname],
+								Hostname:                reservation.Hostname,
+								HostnameOverride:        roleHostMap[roleName][reservation.Hostname],
 								VIP:                     reservation.VIP,
 								ServiceVIP:              reservation.ServiceVIP,
 								OVNStaticBridgeMappings: ovnStaticBridgeMappings,

@@ -400,9 +400,9 @@ func (r *OpenStackBaremetalSetReconciler) Reconcile(ctx context.Context, req ctr
 		true,
 	)
 
-	for _, status := range ipsetStatus {
+	for hostname, status := range ipsetStatus {
 		hostStatus := ospdirectorv1beta1.SyncIPsetStatus(cond, instance.Status.BaremetalHosts, status)
-		instance.Status.BaremetalHosts[status.Hostname] = hostStatus
+		instance.Status.BaremetalHosts[hostname] = hostStatus
 	}
 
 	if (err != nil) || (ctrlResult != ctrl.Result{}) {

@@ -115,7 +115,7 @@ func EnsureIPs(
 			cond,
 			osNetCfg,
 			networks,
-			hostStatus.Hostname,
+			hostname,
 			&hostStatus,
 		)
 		if err != nil {

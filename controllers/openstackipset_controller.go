@@ -226,6 +226,18 @@ func (r *OpenStackIPSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// Wait for IPs created on all configured networks
 	//
 	for hostname, hostStatus := range instance.Status.Hosts {
+		err = openstacknetconfig.WaitOnIPsCreated(
+			r,
+			instance,
+			cond,
+			osNetCfg,
+			instance.Spec.Networks,
+			hostname,
+			&hostStatus,
+		)
+		if err != nil {
+			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+		}
 		//
 		// check if owning object is OSBMS
 		//
@@ -278,19 +290,6 @@ func (r *OpenStackIPSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				}
 			}
 
-		}
-
-		err = openstacknetconfig.WaitOnIPsCreated(
-			r,
-			instance,
-			cond,
-			osNetCfg,
-			instance.Spec.Networks,
-			hostStatus.Hostname,
-			&hostStatus,
-		)
-		if err != nil {
-			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
 		}
 
 		instance.Status.Hosts[hostname] = hostStatus

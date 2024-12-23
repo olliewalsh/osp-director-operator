@@ -923,16 +923,16 @@ func (r *OpenStackNetConfigReconciler) createOrUpdateOpenStackMACAddress(
 			}
 		}
 
-		for _, host := range ipSet.Status.Hosts {
+		for hostname, _ := range ipSet.Status.Hosts {
 
-			roleMACReservation[host.Hostname], err = r.ensureMACReservation(
+			roleMACReservation[hostname], err = r.ensureMACReservation(
 				instance,
 				cond,
 				macAddress,
 				macAddress.Spec.RoleReservations,
 				ipSet.Spec.RoleName,
-				host.Hostname,
-				bmSetReservations[host.Hostname].AnnotatedForDeletion,
+				hostname,
+				bmSetReservations[hostname].AnnotatedForDeletion,
 			)
 			if err != nil {
 				return macAddress, err

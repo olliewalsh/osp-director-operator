@@ -102,8 +102,8 @@ func init() {
 // GetHostnames -
 func (instance OpenStackIPSet) GetHostnames() map[string]string {
 	ret := make(map[string]string)
-	for _, val := range instance.Status.Hosts {
-		ret[val.Hostname] = val.HostRef
+	for hostname, val := range instance.Status.Hosts {
+		ret[hostname] = val.HostRef
 	}
 	return ret
 }

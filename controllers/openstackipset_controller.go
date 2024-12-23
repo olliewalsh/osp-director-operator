@@ -285,6 +285,10 @@ func (r *OpenStackIPSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 			for _, bmh := range baremetalHostsList.Items {
 				hostStatus.HostRef = bmh.Name
+				hostnameOverride := bmh.Labels[common.HostnameLabelSelector]
+				if hostnameOverride != "" {
+					hostStatus.Hostname = hostnameOverride
+				}
 			}
 
 		}

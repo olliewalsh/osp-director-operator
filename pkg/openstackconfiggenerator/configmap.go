@@ -378,6 +378,48 @@ func IsRoleIncluded(roleName string, instance *ospdirectorv1beta1.OpenStackConfi
 
 }
 
+func getNetRoleHostMaps(
+	ctx context.Context,
+	r common.ReconcilerCommon,
+	instance *ospdirectorv1beta1.OpenStackConfigGenerator,
+	osNet ospdirectorv1beta1.OpenStackNet,
+) (map[string]map[string]string, error) {
+	// reduce object scope by limit to the added name_lower network label
+	labelSelector := map[string]string{
+		fmt.Sprintf("%s/%s", shared.SubNetNameLabelSelector, osNet.Spec.NameLower): strconv.FormatBool(true),
+	}
+	listOpts := []client.ListOption{
+		client.InNamespace(instance.Namespace),
+		client.MatchingLabels(labelSelector),
+	}
+
+	allRoles := make(map[string]map[string]string)
+	//
+	// get all OSIPsets
+	//
+	osIPsetList := &ospdirectorv1beta1.OpenStackIPSetList{}
+	if err := r.GetClient().List(
+		ctx,
+		osIPsetList,
+		listOpts...,
+	); err != nil && !k8s_errors.IsNotFound(err) {
+		return nil, err
+	}
+
+	for _, osIPset := range osIPsetList.Items {
+
+		roleName := osIPset.Spec.RoleName
+		allRoles[roleName] = make(map[string]string)
+		roleHostMap := map[string]string{}
+		for hostname, hoststatus := range osIPset.Status.Hosts {
+			roleHostMap[hostname] = hoststatus.Hostname
+		}
+		allRoles[roleName] = roleHostMap
+	}
+
+	return allRoles, nil
+}
+
 // createRolesMap - create map with all roles
 func createRolesMap(
 	ctx context.Context,
@@ -415,6 +457,11 @@ func createRolesMap(
 
 				if !roleReservation.AddToPredictableIPs {
 					continue
+				}
+
+				roleHostMap, err := getNetRoleHostMaps(ctx, r, instance, osnet)
+				if err != nil {
+					return err
 				}
 
 				//
@@ -490,6 +537,7 @@ func createRolesMap(
 				// For multi-rhel need to track the current index for the "normal" role and current index for the "override" role
 				roleHostnameMapIndex := 0
 				roleOverrideHostnameMapIndex := 0
+
 				for _, reservation := range roleReservation.Reservations {
 					// Use pointers to the active index and role, switch to the override for this iteration if it applies
 					hostnameMapIndex := &roleHostnameMapIndex
@@ -521,7 +569,7 @@ func createRolesMap(
 							hostRole.Nodes[reservation.Hostname] = &roleNodeType{
 								Index:                   *hostnameMapIndex,
 								IPaddr:                  map[string]*roleIPType{},
-								Hostname:                reservation.Hostname,
+								Hostname:                roleHostMap[roleName][reservation.Hostname],
 								VIP:                     reservation.VIP,
 								ServiceVIP:              reservation.ServiceVIP,
 								OVNStaticBridgeMappings: ovnStaticBridgeMappings,

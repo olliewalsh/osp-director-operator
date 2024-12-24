@@ -43,7 +43,7 @@ parameter_defaults:
 {{- range $nodeid, $node := $role.Nodes }}
 {{- range $netname, $ip := $node.IPaddr }}
 {{- if and (not $node.VIP) (eq $netname "ctlplane") }}
-    {{ $node.Hostname }}-{{ $netname }}:
+    {{ $node.HostnameOverride }}-{{ $netname }}:
       fixed_ips:
         - ip_address: {{ $ip.IPaddr }}
 {{- end }}
@@ -56,7 +56,7 @@ parameter_defaults:
 {{- range $roleid, $role := .RolesMap }}
 {{- if not $role.IsControlPlane }}
 {{- range $nodeid, $node := $role.Nodes }}
-    {{ $node.Hostname }}:
+    {{ $node.HostnameOverride }}:
 {{- range $netname, $ip := $node.IPaddr }}
       {{ $ip.Network.NameLower }}:
         ip_address: {{ $ip.IPaddr }}

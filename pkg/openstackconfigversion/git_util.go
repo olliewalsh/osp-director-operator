@@ -119,9 +119,10 @@ func SyncGit(
 	configVersions := make(map[string]ospdirectorv1beta1.OpenStackConfigVersion)
 
 	gitCloneOptions := git.CloneOptions{
-		URL:      remoteOptions.URL,
-		Auth:     remoteOptions.Auth,
-		CABundle: remoteOptions.CABundle,
+		URL:          remoteOptions.URL,
+		Auth:         remoteOptions.Auth,
+		CABundle:     remoteOptions.CABundle,
+		ProxyOptions: remoteOptions.ProxyOptions,
 	}
 
 	repo, err := git.Clone(memory.NewStorage(), nil, &gitCloneOptions)
@@ -150,8 +151,9 @@ func SyncGit(
 	})
 
 	refs, err := rem.List(&git.ListOptions{
-		Auth:     remoteOptions.Auth,
-		CABundle: remoteOptions.CABundle,
+		Auth:         remoteOptions.Auth,
+		CABundle:     remoteOptions.CABundle,
+		ProxyOptions: remoteOptions.ProxyOptions,
 	})
 	if err != nil {
 		log.Info(fmt.Sprintf("Failed to list remote: %s\n", err.Error()))

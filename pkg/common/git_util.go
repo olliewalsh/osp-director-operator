@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/go-git/go-git/v5/plumbing/transport"
@@ -30,14 +31,16 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8s_errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // GitRemoteOptions
 type GitRemoteOptions struct {
-	URL      string
-	Auth     transport.AuthMethod
-	CABundle []byte
+	URL          string
+	Auth         transport.AuthMethod
+	CABundle     []byte
+	ProxyOptions transport.ProxyOptions
 }
 
 func getGitSecret(
@@ -93,6 +96,18 @@ func BuildGitScriptEnvVars(
 						Name: gitSecret.Name,
 					},
 					Key: "git_api_key",
+				},
+			},
+		})
+		gitScriptEnvVars = append(gitScriptEnvVars, corev1.EnvVar{
+			Name: "GIT_HTTP_PROXY",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: gitSecret.Name,
+					},
+					Key:      "git_http_proxy",
+					Optional: ptr.To(true),
 				},
 			},
 		})
@@ -160,6 +175,16 @@ func BuildGitOptions(
 		remoteOptions.Auth = &http.BasicAuth{
 			Username: userName,
 			Password: apikey,
+		}
+
+		proxyUrl := string(foundSecret.Data["git_http_proxy"])
+		if proxyUrl != "" {
+			proxy, err := url.Parse(proxyUrl)
+			if err != nil {
+				log.Info(fmt.Sprintf("invalid git http proxy: %s\n", err.Error()))
+				return nil, err
+			}
+			remoteOptions.ProxyOptions.URL = proxy.String()
 		}
 
 	} else {

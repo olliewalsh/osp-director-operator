@@ -45,6 +45,7 @@ var (
 		gitURL         string
 		gitSSHIdentity string
 		gitApiKey      string
+		gitHttpProxy   string
 		playbooks      string
 		limit          string
 		tags           string
@@ -77,6 +78,7 @@ func init() {
 	deployCmd.PersistentFlags().StringVar(&deployOpts.gitURL, "gitURL", "", "Git URL to use when downloading playbooks.")
 	deployCmd.PersistentFlags().StringVar(&deployOpts.gitSSHIdentity, "gitSSHIdentity", "", "Git SSH Identity to use when downloading playbooks.")
 	deployCmd.PersistentFlags().StringVar(&deployOpts.gitApiKey, "gitApiKey", "", "Git API Key to use when downloading playbooks.")
+	deployCmd.PersistentFlags().StringVar(&deployOpts.gitHttpProxy, "gitHttpProxy", "", "Git http proxy url to use when downloading playbooks.")
 	deployCmd.PersistentFlags().StringVar(&deployOpts.playbooks, "playbooks", "", "Playbooks to deploy")
 	deployCmd.PersistentFlags().StringVar(&deployOpts.limit, "limit", "", "Playbook inventory limit")
 	deployCmd.PersistentFlags().StringVar(&deployOpts.tags, "tags", "", "Playbook include tags")
@@ -378,6 +380,11 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 		deployOpts.gitApiKey = gitApiKey
 	}
 
+	if deployOpts.gitHttpProxy == "" {
+		gitHttpProxy, _ := os.LookupEnv("GIT_HTTP_PROXY")
+		deployOpts.gitHttpProxy = gitHttpProxy
+	}
+
 	if deployOpts.playbooks == "" {
 		playbooks, _ := os.LookupEnv("PLAYBOOKS")
 		deployOpts.playbooks = playbooks
@@ -438,6 +445,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 				"CONFIG_VERSION='"+deployOpts.configVersion+"' "+
 					"GIT_ID_RSA='"+deployOpts.gitSSHIdentity+"' "+
 					"GIT_API_KEY='"+deployOpts.gitApiKey+"' "+
+					"GIT_HTTP_PROXY='"+deployOpts.gitHttpProxy+"' "+
 					"GIT_URL='"+deployOpts.gitURL+"' "+
 					"PLAYBOOKS='"+deployOpts.playbooks+"' "+
 					"LIMIT='"+deployOpts.limit+"' "+
@@ -458,6 +466,7 @@ func runDeployCmd(cmd *cobra.Command, args []string) {
 		"CONFIG_VERSION='"+deployOpts.configVersion+"' "+
 			"GIT_ID_RSA='"+deployOpts.gitSSHIdentity+"' "+
 			"GIT_API_KEY='"+deployOpts.gitApiKey+"' "+
+			"GIT_HTTP_PROXY='"+deployOpts.gitHttpProxy+"' "+
 			"GIT_URL='"+deployOpts.gitURL+"' "+
 			"PLAYBOOKS='"+deployOpts.playbooks+"' "+
 			"LIMIT='"+deployOpts.limit+"' "+

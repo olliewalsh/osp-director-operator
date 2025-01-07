@@ -43,8 +43,14 @@ EOF
 chmod 700 $HOME/git-askpass
 export GIT_ASKPASS=$HOME/git-askpass
 
+GIT_PROXY_CONFIG=""
+if [ -n "${GIT_HTTP_PROXY:-}" ]; then
+    GIT_PROXY_CONFIG="--config-env=http.proxy=GIT_HTTP_PROXY --config-env=https.proxy=GIT_HTTP_PROXY"
+    export GIT_HTTP_PROXY
+fi
+
 # confirm git auth works
-git ls-remote "$GIT_URL" > /dev/null || exit 1
+git ${GIT_PROXY_CONFIG} ls-remote "$GIT_URL" > /dev/null || exit 1
 
 git config --global user.email "dev@null.io"
 git config --global user.name "OSP Director Operator"
@@ -86,10 +92,10 @@ set_env() {
 
 init() {
   if [ ! -d $WORKDIR/playbooks ]; then
-    git clone $GIT_URL $WORKDIR/playbooks
+    git ${GIT_PROXY_CONFIG} clone $GIT_URL $WORKDIR/playbooks
   fi
   pushd $WORKDIR/playbooks > /dev/null
-  git fetch -af
+  git ${GIT_PROXY_CONFIG} fetch -af
   popd > /dev/null
 }
 
@@ -204,9 +210,9 @@ accept() {
   init
   pushd $WORKDIR/playbooks > /dev/null
   git tag -d latest || true
-  git push -f --delete origin refs/tags/latest || true
+  git ${GIT_PROXY_CONFIG} push -f --delete origin refs/tags/latest || true
   git tag latest remotes/origin/$CONFIG_VERSION
-  git push origin --tags
+  git ${GIT_PROXY_CONFIG} push origin --tags
 
   # checkout accepted code
   if git branch | grep " tripleo_deploy_working$" > /dev/null; then

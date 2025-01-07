@@ -29,8 +29,14 @@ EOF
 chmod 700 $HOME/git-askpass
 export GIT_ASKPASS=$HOME/git-askpass
 
+GIT_PROXY_CONFIG=""
+if [ -n "${GIT_HTTP_PROXY:-}" ]; then
+    GIT_PROXY_CONFIG="--config-env=http.proxy=GIT_HTTP_PROXY --config-env=https.proxy=GIT_HTTP_PROXY"
+    export GIT_HTTP_PROXY
+fi
+
 # confirm git auth works
-git ls-remote "$GIT_URL" > /dev/null || exit 1
+git ${GIT_PROXY_CONFIG} ls-remote "$GIT_URL" > /dev/null || exit 1
 
 unset OS_CLOUD
 export OS_AUTH_TYPE=none
@@ -218,7 +224,7 @@ rm -Rf $HOME/ansible/overcloud/.git
 {{- end }}
 
 TMP_DIR=$(mktemp -d)
-git clone $GIT_URL $TMP_DIR
+git ${GIT_PROXY_CONFIG} clone $GIT_URL $TMP_DIR
 pushd $TMP_DIR
 
 git config --global user.email "dev@null.io"
@@ -230,7 +236,7 @@ if ! git branch -la | grep origin\/master &>/dev/null; then
   echo "This repo contains automatically generated playbooks for the OSP Director Operator" > README
   git add README
   git commit -a -m "Add README to master branch."
-  git push -f origin master
+  git ${GIT_PROXY_CONFIG} push -f origin master
 fi
 
 git checkout -b $ConfigHash
@@ -261,5 +267,5 @@ openstack stack environment show overcloud -f json | jq '.parameter_defaults.Cep
 
 git add *
 git commit -a -m "Generated playbooks for $ConfigHash"
-git push -f origin $ConfigHash
+git ${GIT_PROXY_CONFIG} push -f origin $ConfigHash
 popd

@@ -35,7 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// GitRemoteOptions
+// GitRemoteOptions -
 type GitRemoteOptions struct {
 	URL          string
 	Auth         transport.AuthMethod
@@ -58,6 +58,7 @@ func getGitSecret(
 	return foundSecret, nil
 }
 
+// BuildGitScriptEnvVars -
 func BuildGitScriptEnvVars(
 	ctx context.Context,
 	gitSecret types.NamespacedName,
@@ -127,6 +128,7 @@ func BuildGitScriptEnvVars(
 	return gitScriptEnvVars, nil
 }
 
+// BuildGitOptions -
 func BuildGitOptions(
 	ctx context.Context,
 	gitSecret types.NamespacedName,
@@ -177,9 +179,9 @@ func BuildGitOptions(
 			Password: apikey,
 		}
 
-		proxyUrl := string(foundSecret.Data["git_http_proxy"])
-		if proxyUrl != "" {
-			proxy, err := url.Parse(proxyUrl)
+		proxyURL := string(foundSecret.Data["git_http_proxy"])
+		if proxyURL != "" {
+			proxy, err := url.Parse(proxyURL)
 			if err != nil {
 				log.Info(fmt.Sprintf("invalid git http proxy: %s\n", err.Error()))
 				return nil, err

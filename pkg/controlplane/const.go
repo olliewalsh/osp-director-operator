@@ -31,4 +31,7 @@ const (
 
 	// TripleoPasswordSecret - name of the generated tripleo password secret
 	TripleoPasswordSecret = "tripleo-passwords"
+
+	// TripleoPasswordHeatEnvironmentFile - name of the secret key
+	TripleoPasswordHeatEnvironmentFile = "tripleo-overcloud-passwords.yaml"
 )

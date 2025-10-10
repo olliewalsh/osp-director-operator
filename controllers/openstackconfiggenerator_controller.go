@@ -246,6 +246,28 @@ func (r *OpenStackConfigGeneratorReconciler) Reconcile(ctx context.Context, req 
 	}
 
 	//
+	// get password secret to include in config hash
+	//
+	tripleoPasswords, ctrlResult, err := common.GetDataFromSecret(
+		ctx,
+		r,
+		instance,
+		cond,
+		shared.ConditionDetails{
+			ConditionNotFoundType:   shared.CommonCondTypeWaiting,
+			ConditionNotFoundReason: shared.CommonCondReasonSecretMissing,
+			ConditionErrorType:      shared.CommonCondTypeError,
+			ConditionErrordReason:   shared.CommonCondReasonSecretError,
+		},
+		controlplane.TripleoPasswordSecret,
+		20,
+		controlplane.TripleoPasswordHeatEnvironmentFile,
+	)
+	if (err != nil) || (ctrlResult != ctrl.Result{}) {
+		return ctrlResult, err
+	}
+
+	//
 	// check if heat-env-config (customizations provided by administrator) exist if it does not exist, requeue
 	//
 	tripleoCustomDeployCM, _, err := common.GetConfigMapAndHashWithName(ctx, r, instance.Spec.HeatEnvConfigMap, instance.Namespace)
@@ -391,6 +413,7 @@ func (r *OpenStackConfigGeneratorReconciler) Reconcile(ctx context.Context, req 
 		tripleoCustomDeployCM.Data,
 		tripleoDeployCM.Data,
 		tripleoEnvironmentFiles,
+		tripleoPasswords,
 	}
 
 	if tripleoTarballCM != nil {

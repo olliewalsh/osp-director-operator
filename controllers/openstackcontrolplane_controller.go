@@ -462,7 +462,7 @@ func (r *OpenStackControlPlaneReconciler) createOrGetTripleoPasswords(
 			return err
 		}
 	} else {
-		tripleoPasswordsByte := secret.Data["tripleo-overcloud-passwords.yaml"]
+		tripleoPasswordsByte := secret.Data[controlplane.TripleoPasswordHeatEnvironmentFile]
 
 		tripleoPasswordsRaw := make(map[string]interface{})
 		if err := yaml.Unmarshal(tripleoPasswordsByte, &tripleoPasswordsRaw); err != nil {
